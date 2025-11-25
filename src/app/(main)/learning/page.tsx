@@ -232,7 +232,100 @@ export default function LearningPage() {
 
     return (
         <div className="space-y-8 pb-20">
-            {/* ... existing code ... */}
+            <div className="flex items-center justify-between">
+                <h1 className="text-3xl font-bold tracking-tight">Learning Planner</h1>
+                <div className="flex gap-2">
+                    <CategoryManager tableName="learning_categories" title="Categories" onUpdate={fetchCategories} />
+                    <Button onClick={handleCreate}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        New Topic
+                    </Button>
+                </div>
+            </div>
+
+            <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <div className="relative flex-1 min-w-[200px] max-w-sm">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search topics..."
+                            className="pl-8"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="w-[150px]">
+                            <div className="flex items-center gap-2">
+                                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                                <SelectValue placeholder="Status" />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Status</SelectItem>
+                            <SelectItem value="Planned">Planned</SelectItem>
+                            <SelectItem value="In Progress">In Progress</SelectItem>
+                            <SelectItem value="Completed">Completed</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                        <SelectTrigger className="w-[150px]">
+                            <div className="flex items-center gap-2">
+                                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                                <SelectValue placeholder="Priority" />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Priority</SelectItem>
+                            <SelectItem value="High">High</SelectItem>
+                            <SelectItem value="Medium">Medium</SelectItem>
+                            <SelectItem value="Low">Low</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                        <SelectTrigger className="w-[150px]">
+                            <div className="flex items-center gap-2">
+                                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                                <SelectValue placeholder="Category" />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Categories</SelectItem>
+                            <SelectItem value="Uncategorized">Uncategorized</SelectItem>
+                            {categories.map(cat => (
+                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {(statusFilter !== "All" || priorityFilter !== "All" || categoryFilter !== "All") && (
+                        <Button variant="ghost" size="icon" onClick={() => {
+                            setStatusFilter("All")
+                            setPriorityFilter("All")
+                            setCategoryFilter("All")
+                        }}>
+                            <X className="h-4 w-4" />
+                        </Button>
+                    )}
+                </div>
+
+                {selectedItems.size > 0 && (
+                    <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md animate-in fade-in slide-in-from-top-2">
+                        <span className="text-sm font-medium px-2">{selectedItems.size} selected</span>
+                        <div className="h-4 w-px bg-border mx-2" />
+                        <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => handleBulkStatusUpdate('Planned')}>Set Planned</Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleBulkStatusUpdate('In Progress')}>Set In Progress</Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleBulkStatusUpdate('Completed')}>Set Completed</Button>
+                        </div>
+                        <div className="flex-1" />
+                        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setSelectedItems(new Set())}>Cancel</Button>
+                    </div>
+                )}
+            </div>
 
             <div className="space-y-2">
                 <div className="flex items-center gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">

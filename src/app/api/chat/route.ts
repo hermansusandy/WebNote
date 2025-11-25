@@ -1,5 +1,5 @@
-```typescript
 import { google } from '@ai-sdk/google'
+// Force rebuild
 import { streamText, tool } from 'ai'
 import { z } from 'zod'
 import { createServerClient } from '@supabase/ssr'
@@ -23,15 +23,8 @@ export async function POST(req: Request) {
                     return cookieStore.getAll()
                 },
                 setAll(cookiesToSet) {
-                    try {
-                        cookiesToSet.forEach(({ name, value, options }) =>
-                            cookieStore.set(name, value, options)
-                        )
-                    } catch {
-                        // The `setAll` method was called from a Server Component.
-                        // This can be ignored if you have middleware refreshing
-                        // user sessions.
-                    }
+                    // In Next.js Route Handlers, the cookie store is read-only.
+                    // We cannot set cookies here. Middleware handles session refreshing.
                 },
             },
         }
@@ -73,7 +66,8 @@ export async function POST(req: Request) {
                     title: z.string().describe('The title of the page'),
                     content: z.string().describe('The initial content of the page (markdown supported)'),
                 }),
-                execute: async ({ title, content }: { title: string; content: string }) => {
+                execute: async (args: any) => {
+                    const { title, content } = args
                     console.log("Executing createPage tool:", title)
 
                     if (!user) return 'Error: You must be logged in to create a page.'
@@ -88,11 +82,11 @@ export async function POST(req: Request) {
 
                     if (error) {
                         console.error("Error creating page:", error)
-                        return `Failed to create page: ${ error.message } `
+                        return `Failed to create page: ${error.message} `
                     }
 
                     console.log("Page created successfully:", data.id)
-                    return `Page "${title}" created successfully with ID ${ data.id }.`
+                    return `Page "${title}" created successfully with ID ${data.id}.`
                 },
             }),
             createLearning: tool({
@@ -102,7 +96,8 @@ export async function POST(req: Request) {
                     priority: z.enum(['Low', 'Medium', 'High']).optional().describe('Priority of the goal'),
                     status: z.enum(['Planned', 'In Progress', 'Completed']).optional().describe('Status of the goal'),
                 }),
-                execute: async ({ title, priority = 'Medium', status = 'Planned' }) => {
+                execute: async (args: any) => {
+                    const { title, priority = 'Medium', status = 'Planned' } = args
                     console.log("Executing createLearning tool:", title)
                     if (!user) return 'Error: You must be logged in to create a learning goal.'
 
@@ -114,7 +109,7 @@ export async function POST(req: Request) {
 
                     if (error) {
                         console.error("Error creating learning goal:", error)
-                        return `Failed to create learning goal: ${ error.message } `
+                        return `Failed to create learning goal: ${error.message} `
                     }
                     return `Learning goal "${title}" created successfully.`
                 },
@@ -125,7 +120,8 @@ export async function POST(req: Request) {
                     title: z.string().describe('The title of the reminder'),
                     due_at: z.string().describe('The due date and time (ISO string or natural language to be converted)'),
                 }),
-                execute: async ({ title, due_at }) => {
+                execute: async (args: any) => {
+                    const { title, due_at } = args
                     console.log("Executing createReminder tool:", title)
                     if (!user) return 'Error: You must be logged in to create a reminder.'
 
@@ -137,7 +133,7 @@ export async function POST(req: Request) {
 
                     if (error) {
                         console.error("Error creating reminder:", error)
-                        return `Failed to create reminder: ${ error.message } `
+                        return `Failed to create reminder: ${error.message} `
                     }
                     return `Reminder "${title}" created successfully.`
                 },
@@ -150,7 +146,8 @@ export async function POST(req: Request) {
                     category: z.string().optional().describe('The category (e.g., "Development", "Design"). Defaults to "General"'),
                     remarks: z.string().optional().describe('Optional remarks or notes about the URL'),
                 }),
-                execute: async ({ name, url, category = 'General', remarks = '' }) => {
+                execute: async (args: any) => {
+                    const { name, url, category = 'General', remarks = '' } = args
                     console.log("Executing createWebUrl tool:", name)
                     if (!user) return 'Error: You must be logged in to create a Web URL.'
 
@@ -168,7 +165,7 @@ export async function POST(req: Request) {
 
                     if (error) {
                         console.error("Error creating Web URL:", error)
-                        return `Failed to create Web URL: ${ error.message } `
+                        return `Failed to create Web URL: ${error.message} `
                     }
                     return `Web URL "${name}" created successfully.`
                 },
@@ -181,7 +178,8 @@ export async function POST(req: Request) {
                     categoryName: z.string().optional().describe('The category name. Will look up or create if needed. Defaults to "General"'),
                     note: z.string().optional().describe('Optional notes about the video'),
                 }),
-                execute: async ({ name, url, categoryName = 'General', note = '' }) => {
+                execute: async (args: any) => {
+                    const { name, url, categoryName = 'General', note = '' } = args
                     console.log("Executing createYoutubeVideo tool:", name)
                     if (!user) return 'Error: You must be logged in to create a YouTube video.'
 
@@ -207,7 +205,7 @@ export async function POST(req: Request) {
 
                         if (catError) {
                             console.error("Error creating YouTube category:", catError)
-                            return `Failed to create category "${categoryName}": ${ catError.message } `
+                            return `Failed to create category "${categoryName}": ${catError.message} `
                         }
                         categoryId = newCategory.id
                     }
@@ -227,7 +225,7 @@ export async function POST(req: Request) {
 
                     if (error) {
                         console.error("Error creating YouTube video:", error)
-                        return `Failed to create YouTube video: ${ error.message } `
+                        return `Failed to create YouTube video: ${error.message} `
                     }
                     return `YouTube video "${name}" created successfully in category "${categoryName}".`
                 },
@@ -237,7 +235,8 @@ export async function POST(req: Request) {
                 parameters: z.object({
                     query: z.string().describe('The search query'),
                 }),
-                execute: async ({ query }) => {
+                execute: async (args: any) => {
+                    const { query } = args
                     console.log("Executing search tool:", query)
                     if (!user) return 'Error: You must be logged in to search.'
 
@@ -249,7 +248,7 @@ export async function POST(req: Request) {
                             .from(table)
                             .select(columns)
                             .eq('user_id', user.id)
-                            .or(`title.ilike.% ${ query }%, content.ilike.% ${ query }% `)
+                            .or(`title.ilike.% ${query}%, content.ilike.% ${query}% `)
                             .limit(5)
 
                         if (data) {
@@ -269,7 +268,7 @@ export async function POST(req: Request) {
                         .from('pages')
                         .select('id, title, content')
                         .eq('user_id', user.id)
-                        .or(`title.ilike.% ${ query }%, content.ilike.% ${ query }% `)
+                        .or(`title.ilike.% ${query}%, content.ilike.% ${query}% `)
                         .limit(3)
                     pages?.forEach(p => results.push({ id: p.id, type: 'page', title: p.title, snippet: p.content?.substring(0, 100) }))
 
@@ -278,7 +277,7 @@ export async function POST(req: Request) {
                         .from('learning_titles')
                         .select('id, title')
                         .eq('user_id', user.id)
-                        .ilike('title', `% ${ query }% `)
+                        .ilike('title', `% ${query}% `)
                         .limit(3)
                     learning?.forEach(l => results.push({ id: l.id, type: 'learning', title: l.title, snippet: '' }))
 
@@ -287,7 +286,7 @@ export async function POST(req: Request) {
                         .from('reminders')
                         .select('id, title')
                         .eq('user_id', user.id)
-                        .ilike('title', `% ${ query }% `)
+                        .ilike('title', `% ${query}% `)
                         .limit(3)
                     reminders?.forEach(r => results.push({ id: r.id, type: 'reminder', title: r.title, snippet: '' }))
 
@@ -296,7 +295,7 @@ export async function POST(req: Request) {
                         .from('web_urls')
                         .select('id, name, url, remarks')
                         .eq('user_id', user.id)
-                        .or(`name.ilike.% ${ query }%, remarks.ilike.% ${ query }% `)
+                        .or(`name.ilike.% ${query}%, remarks.ilike.% ${query}% `)
                         .limit(3)
                     webUrls?.forEach(w => results.push({ id: w.id, type: 'web_url', title: w.name, snippet: w.url }))
 
@@ -305,7 +304,7 @@ export async function POST(req: Request) {
                         .from('youtube_items')
                         .select('id, name, url, note')
                         .eq('user_id', user.id)
-                        .or(`name.ilike.% ${ query }%, note.ilike.% ${ query }% `)
+                        .or(`name.ilike.% ${query}%, note.ilike.% ${query}% `)
                         .limit(3)
                     youtube?.forEach(y => results.push({ id: y.id, type: 'youtube_video', title: y.name, snippet: y.url }))
 
@@ -319,8 +318,9 @@ export async function POST(req: Request) {
                     id: z.string().describe('The ID of the resource to delete'),
                     type: z.enum(['page', 'learning', 'reminder', 'web_url', 'youtube_video']).describe('The type of resource'),
                 }),
-                execute: async ({ id, type }) => {
-                    console.log(`Executing deleteResource tool: ${ type } ${ id } `)
+                execute: async (args: any) => {
+                    const { id, type } = args
+                    console.log(`Executing deleteResource tool: ${type} ${id} `)
                     if (!user) return 'Error: You must be logged in to delete resources.'
 
                     let table = ''
@@ -339,10 +339,10 @@ export async function POST(req: Request) {
                         .eq('user_id', user.id)
 
                     if (error) {
-                        console.error(`Error deleting ${ type }: `, error)
-                        return `Failed to delete ${ type }: ${ error.message } `
+                        console.error(`Error deleting ${type}: `, error)
+                        return `Failed to delete ${type}: ${error.message} `
                     }
-                    return `${ type } with ID ${ id } deleted successfully.`
+                    return `${type} with ID ${id} deleted successfully.`
                 },
             }),
             updatePage: tool({
@@ -352,7 +352,8 @@ export async function POST(req: Request) {
                     title: z.string().optional().describe('The new title'),
                     content: z.string().optional().describe('The new content'),
                 }),
-                execute: async ({ id, title, content }) => {
+                execute: async (args: any) => {
+                    const { id, title, content } = args
                     console.log("Executing updatePage tool:", id)
                     if (!user) return 'Error: You must be logged in to update pages.'
 
@@ -366,7 +367,7 @@ export async function POST(req: Request) {
                         .eq('id', id)
                         .eq('user_id', user.id)
 
-                    if (error) return `Failed to update page: ${ error.message } `
+                    if (error) return `Failed to update page: ${error.message} `
                     return `Page updated successfully.`
                 },
             }),
@@ -378,7 +379,8 @@ export async function POST(req: Request) {
                     priority: z.enum(['Low', 'Medium', 'High']).optional(),
                     status: z.enum(['Planned', 'In Progress', 'Completed']).optional(),
                 }),
-                execute: async ({ id, title, priority, status }) => {
+                execute: async (args: any) => {
+                    const { id, title, priority, status } = args
                     console.log("Executing updateLearning tool:", id)
                     if (!user) return 'Error: You must be logged in.'
 
@@ -393,7 +395,7 @@ export async function POST(req: Request) {
                         .eq('id', id)
                         .eq('user_id', user.id)
 
-                    if (error) return `Failed to update learning goal: ${ error.message } `
+                    if (error) return `Failed to update learning goal: ${error.message} `
                     return `Learning goal updated successfully.`
                 },
             }),
@@ -406,7 +408,8 @@ export async function POST(req: Request) {
                     category: z.string().optional(),
                     remarks: z.string().optional(),
                 }),
-                execute: async ({ id, name, url, category, remarks }) => {
+                execute: async (args: any) => {
+                    const { id, name, url, category, remarks } = args
                     console.log("Executing updateWebUrl tool:", id)
                     if (!user) return 'Error: You must be logged in.'
 
@@ -422,7 +425,7 @@ export async function POST(req: Request) {
                         .eq('id', id)
                         .eq('user_id', user.id)
 
-                    if (error) return `Failed to update Web URL: ${ error.message } `
+                    if (error) return `Failed to update Web URL: ${error.message} `
                     return `Web URL updated successfully.`
                 },
             }),
@@ -434,7 +437,8 @@ export async function POST(req: Request) {
                     url: z.string().optional(),
                     note: z.string().optional(),
                 }),
-                execute: async ({ id, name, url, note }) => {
+                execute: async (args: any) => {
+                    const { id, name, url, note } = args
                     console.log("Executing updateYoutubeVideo tool:", id)
                     if (!user) return 'Error: You must be logged in.'
 
@@ -449,7 +453,7 @@ export async function POST(req: Request) {
                         .eq('id', id)
                         .eq('user_id', user.id)
 
-                    if (error) return `Failed to update YouTube video: ${ error.message } `
+                    if (error) return `Failed to update YouTube video: ${error.message} `
                     return `YouTube video updated successfully.`
                 },
             }),
@@ -458,4 +462,3 @@ export async function POST(req: Request) {
 
     return result.toTextStreamResponse()
 }
-```
