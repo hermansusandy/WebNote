@@ -1,4 +1,5 @@
-import { openai } from '@ai-sdk/openai'
+```typescript
+import { google } from '@ai-sdk/google'
 import { streamText, tool } from 'ai'
 import { z } from 'zod'
 import { createServerClient } from '@supabase/ssr'
@@ -46,22 +47,22 @@ export async function POST(req: Request) {
     }
 
     const result = streamText({
-        model: openai('gpt-4o'),
+        model: google('gemini-1.5-pro-latest'),
         messages,
         maxSteps: 5,
-        system: `You are a helpful AI assistant for a note-taking app called WebNote.
+        system: `You are a helpful AI assistant for a note - taking app called WebNote.
     You can help users by answering questions and managing their content.
-    
+
     Capabilities:
-    - Create: Pages (markdown), Learning Goals, Reminders, Web URLs, YouTube Videos.
+- Create: Pages(markdown), Learning Goals, Reminders, Web URLs, YouTube Videos.
     - Search: Find any resource by keyword to get its ID.
     - Delete: Remove any resource using its ID and type.
-    
+
     Rules:
-    - To create a todo list, create a page with markdown checkboxes (e.g., "- [ ] Task name").
+    - To create a todo list, create a page with markdown checkboxes(e.g., "- [ ] Task name").
     - When creating a page, ask for the title and content if not provided.
-    - When creating a learning goal, ask for the title. Priority defaults to 'Medium' and status to 'Planned'.
-    - When creating a reminder, ask for the title and due date/time.
+    - When creating a learning goal, ask for the title.Priority defaults to 'Medium' and status to 'Planned'.
+    - When creating a reminder, ask for the title and due date / time.
     - To delete or update something, FIRST search for it to get the ID, then perform the action.
     
     Always be concise and friendly.`,
@@ -87,11 +88,11 @@ export async function POST(req: Request) {
 
                     if (error) {
                         console.error("Error creating page:", error)
-                        return `Failed to create page: ${error.message}`
+                        return `Failed to create page: ${ error.message } `
                     }
 
                     console.log("Page created successfully:", data.id)
-                    return `Page "${title}" created successfully with ID ${data.id}.`
+                    return `Page "${title}" created successfully with ID ${ data.id }.`
                 },
             }),
             createLearning: tool({
@@ -113,7 +114,7 @@ export async function POST(req: Request) {
 
                     if (error) {
                         console.error("Error creating learning goal:", error)
-                        return `Failed to create learning goal: ${error.message}`
+                        return `Failed to create learning goal: ${ error.message } `
                     }
                     return `Learning goal "${title}" created successfully.`
                 },
@@ -136,7 +137,7 @@ export async function POST(req: Request) {
 
                     if (error) {
                         console.error("Error creating reminder:", error)
-                        return `Failed to create reminder: ${error.message}`
+                        return `Failed to create reminder: ${ error.message } `
                     }
                     return `Reminder "${title}" created successfully.`
                 },
@@ -167,7 +168,7 @@ export async function POST(req: Request) {
 
                     if (error) {
                         console.error("Error creating Web URL:", error)
-                        return `Failed to create Web URL: ${error.message}`
+                        return `Failed to create Web URL: ${ error.message } `
                     }
                     return `Web URL "${name}" created successfully.`
                 },
@@ -206,7 +207,7 @@ export async function POST(req: Request) {
 
                         if (catError) {
                             console.error("Error creating YouTube category:", catError)
-                            return `Failed to create category "${categoryName}": ${catError.message}`
+                            return `Failed to create category "${categoryName}": ${ catError.message } `
                         }
                         categoryId = newCategory.id
                     }
@@ -226,7 +227,7 @@ export async function POST(req: Request) {
 
                     if (error) {
                         console.error("Error creating YouTube video:", error)
-                        return `Failed to create YouTube video: ${error.message}`
+                        return `Failed to create YouTube video: ${ error.message } `
                     }
                     return `YouTube video "${name}" created successfully in category "${categoryName}".`
                 },
@@ -248,7 +249,7 @@ export async function POST(req: Request) {
                             .from(table)
                             .select(columns)
                             .eq('user_id', user.id)
-                            .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
+                            .or(`title.ilike.% ${ query }%, content.ilike.% ${ query }% `)
                             .limit(5)
 
                         if (data) {
@@ -268,7 +269,7 @@ export async function POST(req: Request) {
                         .from('pages')
                         .select('id, title, content')
                         .eq('user_id', user.id)
-                        .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
+                        .or(`title.ilike.% ${ query }%, content.ilike.% ${ query }% `)
                         .limit(3)
                     pages?.forEach(p => results.push({ id: p.id, type: 'page', title: p.title, snippet: p.content?.substring(0, 100) }))
 
@@ -277,7 +278,7 @@ export async function POST(req: Request) {
                         .from('learning_titles')
                         .select('id, title')
                         .eq('user_id', user.id)
-                        .ilike('title', `%${query}%`)
+                        .ilike('title', `% ${ query }% `)
                         .limit(3)
                     learning?.forEach(l => results.push({ id: l.id, type: 'learning', title: l.title, snippet: '' }))
 
@@ -286,7 +287,7 @@ export async function POST(req: Request) {
                         .from('reminders')
                         .select('id, title')
                         .eq('user_id', user.id)
-                        .ilike('title', `%${query}%`)
+                        .ilike('title', `% ${ query }% `)
                         .limit(3)
                     reminders?.forEach(r => results.push({ id: r.id, type: 'reminder', title: r.title, snippet: '' }))
 
@@ -295,7 +296,7 @@ export async function POST(req: Request) {
                         .from('web_urls')
                         .select('id, name, url, remarks')
                         .eq('user_id', user.id)
-                        .or(`name.ilike.%${query}%,remarks.ilike.%${query}%`)
+                        .or(`name.ilike.% ${ query }%, remarks.ilike.% ${ query }% `)
                         .limit(3)
                     webUrls?.forEach(w => results.push({ id: w.id, type: 'web_url', title: w.name, snippet: w.url }))
 
@@ -304,7 +305,7 @@ export async function POST(req: Request) {
                         .from('youtube_items')
                         .select('id, name, url, note')
                         .eq('user_id', user.id)
-                        .or(`name.ilike.%${query}%,note.ilike.%${query}%`)
+                        .or(`name.ilike.% ${ query }%, note.ilike.% ${ query }% `)
                         .limit(3)
                     youtube?.forEach(y => results.push({ id: y.id, type: 'youtube_video', title: y.name, snippet: y.url }))
 
@@ -319,7 +320,7 @@ export async function POST(req: Request) {
                     type: z.enum(['page', 'learning', 'reminder', 'web_url', 'youtube_video']).describe('The type of resource'),
                 }),
                 execute: async ({ id, type }) => {
-                    console.log(`Executing deleteResource tool: ${type} ${id}`)
+                    console.log(`Executing deleteResource tool: ${ type } ${ id } `)
                     if (!user) return 'Error: You must be logged in to delete resources.'
 
                     let table = ''
@@ -338,10 +339,10 @@ export async function POST(req: Request) {
                         .eq('user_id', user.id)
 
                     if (error) {
-                        console.error(`Error deleting ${type}:`, error)
-                        return `Failed to delete ${type}: ${error.message}`
+                        console.error(`Error deleting ${ type }: `, error)
+                        return `Failed to delete ${ type }: ${ error.message } `
                     }
-                    return `${type} with ID ${id} deleted successfully.`
+                    return `${ type } with ID ${ id } deleted successfully.`
                 },
             }),
             updatePage: tool({
@@ -365,7 +366,7 @@ export async function POST(req: Request) {
                         .eq('id', id)
                         .eq('user_id', user.id)
 
-                    if (error) return `Failed to update page: ${error.message}`
+                    if (error) return `Failed to update page: ${ error.message } `
                     return `Page updated successfully.`
                 },
             }),
@@ -392,7 +393,7 @@ export async function POST(req: Request) {
                         .eq('id', id)
                         .eq('user_id', user.id)
 
-                    if (error) return `Failed to update learning goal: ${error.message}`
+                    if (error) return `Failed to update learning goal: ${ error.message } `
                     return `Learning goal updated successfully.`
                 },
             }),
@@ -421,7 +422,7 @@ export async function POST(req: Request) {
                         .eq('id', id)
                         .eq('user_id', user.id)
 
-                    if (error) return `Failed to update Web URL: ${error.message}`
+                    if (error) return `Failed to update Web URL: ${ error.message } `
                     return `Web URL updated successfully.`
                 },
             }),
@@ -448,7 +449,7 @@ export async function POST(req: Request) {
                         .eq('id', id)
                         .eq('user_id', user.id)
 
-                    if (error) return `Failed to update YouTube video: ${error.message}`
+                    if (error) return `Failed to update YouTube video: ${ error.message } `
                     return `YouTube video updated successfully.`
                 },
             }),
