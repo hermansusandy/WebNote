@@ -7,19 +7,24 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sparkles, X, Send, Bot, User } from "lucide-react"
 import { useState, useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 export function AIAssistant() {
     const [isOpen, setIsOpen] = useState(false)
-    const [inputValue, setInputValue] = useState('')
-    const { messages, sendMessage, isLoading } = useChat()
+    const chatHelpers = useChat({
+        onError: (err) => {
+            console.error("AI Chat Error:", err)
+            toast.error("AI Error: " + err.message)
+        }
+    })
 
-    const handleLocalSubmit = (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!inputValue.trim()) return
+    // Use standard hooks from useChat
+    const { messages, input, handleInputChange, handleSubmit, isLoading, error } = chatHelpers as any
 
-        sendMessage({ text: inputValue })
-        setInputValue('')
-    }
+    // Debug logging
+    useEffect(() => {
+        console.log("useChat helpers:", Object.keys(chatHelpers))
+    }, [chatHelpers])
 
     const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -106,9 +111,6 @@ export function AIAssistant() {
                                         return null
                                     })
                                 ) : (
-                                    // Fallback if parts is missing (e.g. legacy or optimistic update issue)
-                                    // But wait, optimistic update via sendMessage({ text }) should create parts.
-                                    // Let's assume parts exists.
                                     m.content
                                 )}
                             </div>
@@ -127,15 +129,15 @@ export function AIAssistant() {
                 </div>
             </ScrollArea>
 
-            <form onSubmit={handleLocalSubmit} className="p-3 border-t bg-background rounded-b-lg">
+            <form onSubmit={handleSubmit} className="p-3 border-t bg-background rounded-b-lg">
                 <div className="flex gap-2">
                     <Input
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
+                        value={input}
+                        onChange={handleInputChange}
                         placeholder="Ask me anything..."
                         className="flex-1"
                     />
-                    <Button type="submit" size="icon" disabled={isLoading || !inputValue.trim()}>
+                    <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
                         <Send className="h-4 w-4" />
                     </Button>
                 </div>

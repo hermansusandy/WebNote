@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Search, Trash, CheckCircle2, Circle, Filter, X, Pencil, Check } from "lucide-react"
+import { Plus, Search, Trash, CheckCircle2, Circle, Filter, X, Pencil, Check, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { CategoryManager } from "@/components/category-manager"
@@ -35,6 +35,7 @@ export default function LearningPage() {
     const [statusFilter, setStatusFilter] = useState<string>("All")
     const [priorityFilter, setPriorityFilter] = useState<string>("All")
     const [categoryFilter, setCategoryFilter] = useState<string>("All")
+    const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
 
     useEffect(() => {
         fetchItems()
@@ -135,10 +136,10 @@ export default function LearningPage() {
     }
 
     const toggleSelectAll = () => {
-        if (selectedItems.size === filteredItems.length) {
+        if (selectedItems.size === sortedItems.length) {
             setSelectedItems(new Set())
         } else {
-            setSelectedItems(new Set(filteredItems.map(item => item.id)))
+            setSelectedItems(new Set(sortedItems.map(item => item.id)))
         }
     }
 
@@ -155,6 +156,15 @@ export default function LearningPage() {
         toast.success("Status updated successfully")
     }
 
+    const handleSort = (key: string) => {
+        setSortConfig(current => {
+            if (current?.key === key) {
+                return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+            }
+            return { key, direction: 'asc' }
+        })
+    }
+
     const filteredItems = items.filter(item => {
         const categoryName = item.category?.name || ''
         return item.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -164,6 +174,38 @@ export default function LearningPage() {
         const matchesPriority = priorityFilter === "All" || item.priority === priorityFilter
         const matchesCategory = categoryFilter === "All" || (item.category_id === categoryFilter) || (categoryFilter === "Uncategorized" && !item.category_id)
         return matchesStatus && matchesPriority && matchesCategory
+    })
+
+    // Assign display index based on creation time (Oldest = 1)
+    const itemsWithIndex = [...filteredItems].sort((a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    ).map((item, index) => ({ ...item, displayIndex: index + 1 }))
+
+    const sortedItems = itemsWithIndex.sort((a, b) => {
+        if (!sortConfig) {
+            // Default sort: Newest first (descending index)
+            return b.displayIndex - a.displayIndex
+        }
+        const { key, direction } = sortConfig
+
+        if (key === 'created_at') {
+            return direction === 'asc' ? a.displayIndex - b.displayIndex : b.displayIndex - a.displayIndex
+        }
+
+        let aValue = a[key]
+        let bValue = b[key]
+
+        if (key === 'category') {
+            aValue = a.category?.name || ''
+            bValue = b.category?.name || ''
+        } else {
+            aValue = aValue || ''
+            bValue = bValue || ''
+        }
+
+        if (aValue < bValue) return direction === 'asc' ? -1 : 1
+        if (aValue > bValue) return direction === 'asc' ? 1 : -1
+        return 0
     })
 
     const getStatusColor = (status: string) => {
@@ -182,117 +224,49 @@ export default function LearningPage() {
         }
     }
 
+    const renderSortIcon = (key: string) => {
+        if (sortConfig?.key !== key) return <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />
+        if (sortConfig.direction === 'asc') return <ArrowUp className="ml-2 h-4 w-4 text-foreground" />
+        return <ArrowDown className="ml-2 h-4 w-4 text-foreground" />
+    }
+
     return (
         <div className="space-y-8 pb-20">
-            <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold tracking-tight">Learning Planner</h1>
-                <div className="flex gap-2">
-                    <CategoryManager tableName="learning_categories" title="Categories" onUpdate={fetchCategories} />
-                    <Button onClick={handleCreate}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        New Topic
-                    </Button>
-                </div>
-            </div>
-
-            <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2">
-                    <div className="relative flex-1 max-w-sm">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search topics or categories..."
-                            className="pl-8"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                    </div>
-
-                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                        <SelectTrigger className="w-[150px]">
-                            <div className="flex items-center gap-2">
-                                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                                <SelectValue placeholder="Category" />
-                            </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Categories</SelectItem>
-                            {categories.map(cat => (
-                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                            ))}
-                            <SelectItem value="Uncategorized">Uncategorized</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-[130px]">
-                            <div className="flex items-center gap-2">
-                                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                                <SelectValue placeholder="Status" />
-                            </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Status</SelectItem>
-                            <SelectItem value="Planned">Planned</SelectItem>
-                            <SelectItem value="In Progress">In Progress</SelectItem>
-                            <SelectItem value="Completed">Completed</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                        <SelectTrigger className="w-[130px]">
-                            <div className="flex items-center gap-2">
-                                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                                <SelectValue placeholder="Priority" />
-                            </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Priority</SelectItem>
-                            <SelectItem value="Low">Low</SelectItem>
-                            <SelectItem value="Medium">Medium</SelectItem>
-                            <SelectItem value="High">High</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    {(statusFilter !== "All" || priorityFilter !== "All" || categoryFilter !== "All") && (
-                        <Button variant="ghost" size="icon" onClick={() => { setStatusFilter("All"); setPriorityFilter("All"); setCategoryFilter("All") }}>
-                            <X className="h-4 w-4" />
-                        </Button>
-                    )}
-                </div>
-
-                {selectedItems.size > 0 && (
-                    <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md animate-in fade-in slide-in-from-top-2">
-                        <span className="text-sm font-medium px-2">{selectedItems.size} selected</span>
-                        <div className="h-4 w-px bg-border mx-2" />
-                        <Button variant="ghost" size="sm" onClick={() => handleBulkStatusUpdate('Planned')}>Set Planned</Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleBulkStatusUpdate('In Progress')}>Set In Progress</Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleBulkStatusUpdate('Completed')}>Set Completed</Button>
-                        <div className="flex-1" />
-                        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setSelectedItems(new Set())}>Cancel</Button>
-                    </div>
-                )}
-            </div>
+            {/* ... existing code ... */}
 
             <div className="space-y-2">
                 <div className="flex items-center gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
                     <Checkbox
-                        checked={filteredItems.length > 0 && selectedItems.size === filteredItems.length}
+                        checked={sortedItems.length > 0 && selectedItems.size === sortedItems.length}
                         onCheckedChange={toggleSelectAll}
                     />
-                    <div className="w-[30%]">Topic</div>
-                    <div className="flex-1">Notes</div>
-                    <div className="w-[140px]">Category</div>
-                    <div className="w-[120px]">Status</div>
-                    <div className="w-[120px]">Priority</div>
+                    <div className="w-10 font-medium cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('created_at')}>
+                        No. {renderSortIcon('created_at')}
+                    </div>
+                    <div className="w-[30%] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('title')}>
+                        Topic {renderSortIcon('title')}
+                    </div>
+                    <div className="flex-1 cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('notes')}>
+                        Notes {renderSortIcon('notes')}
+                    </div>
+                    <div className="w-[140px] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('category')}>
+                        Category {renderSortIcon('category')}
+                    </div>
+                    <div className="w-[120px] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('status')}>
+                        Status {renderSortIcon('status')}
+                    </div>
+                    <div className="w-[120px] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('priority')}>
+                        Priority {renderSortIcon('priority')}
+                    </div>
                     <div className="w-20">Actions</div>
                 </div>
 
-                {filteredItems.length === 0 ? (
+                {sortedItems.length === 0 ? (
                     <div className="p-8 text-center text-sm text-muted-foreground border rounded-md border-dashed">
                         No learning topics found.
                     </div>
                 ) : (
-                    filteredItems.map(item => {
+                    sortedItems.map((item) => {
                         const isEditing = editingId === item.id
 
                         return (
@@ -301,6 +275,7 @@ export default function LearningPage() {
                                     checked={selectedItems.has(item.id)}
                                     onCheckedChange={() => toggleSelection(item.id)}
                                 />
+                                <div className="w-10 text-muted-foreground text-xs">{item.displayIndex}</div>
                                 <div className="w-[30%]">
                                     {isEditing ? (
                                         <Input

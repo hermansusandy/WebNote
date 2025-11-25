@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Search, Trash, Filter, X, Pencil, Check, ExternalLink } from "lucide-react"
+import { Plus, Search, Trash, Filter, X, Pencil, Check, ExternalLink, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -32,6 +32,7 @@ export default function ToolsPage() {
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
     const [categoryFilter, setCategoryFilter] = useState<string>("All")
     const [subCategoryFilter, setSubCategoryFilter] = useState<string>("All")
+    const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
 
     useEffect(() => {
         fetchItems()
@@ -127,11 +128,20 @@ export default function ToolsPage() {
     }
 
     const toggleSelectAll = () => {
-        if (selectedItems.size === filteredItems.length) {
+        if (selectedItems.size === sortedItems.length) {
             setSelectedItems(new Set())
         } else {
-            setSelectedItems(new Set(filteredItems.map(item => item.id)))
+            setSelectedItems(new Set(sortedItems.map(item => item.id)))
         }
+    }
+
+    const handleSort = (key: string) => {
+        setSortConfig(current => {
+            if (current?.key === key) {
+                return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+            }
+            return { key, direction: 'asc' }
+        })
     }
 
     const filteredItems = items.filter(item => {
@@ -146,6 +156,30 @@ export default function ToolsPage() {
         return matchesCategory && matchesSubCategory
     })
 
+    // Assign display index based on creation time (Oldest = 1)
+    const itemsWithIndex = [...filteredItems].sort((a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    ).map((item, index) => ({ ...item, displayIndex: index + 1 }))
+
+    const sortedItems = itemsWithIndex.sort((a, b) => {
+        if (!sortConfig) {
+            // Default sort: Newest first (descending index)
+            return b.displayIndex - a.displayIndex
+        }
+        const { key, direction } = sortConfig
+
+        if (key === 'created_at') {
+            return direction === 'asc' ? a.displayIndex - b.displayIndex : b.displayIndex - a.displayIndex
+        }
+
+        const aValue = a[key] || ''
+        const bValue = b[key] || ''
+
+        if (aValue < bValue) return direction === 'asc' ? -1 : 1
+        if (aValue > bValue) return direction === 'asc' ? 1 : -1
+        return 0
+    })
+
     const getYoutubeId = (url: string) => {
         if (!url) return null
         const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/
@@ -153,8 +187,14 @@ export default function ToolsPage() {
         return (match && match[2].length === 11) ? match[2] : null
     }
 
+    const renderSortIcon = (key: string) => {
+        if (sortConfig?.key !== key) return <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />
+        if (sortConfig.direction === 'asc') return <ArrowUp className="ml-2 h-4 w-4 text-foreground" />
+        return <ArrowDown className="ml-2 h-4 w-4 text-foreground" />
+    }
+
     return (
-        <div className="space-y-8 pb-20 p-8">
+        <div className="space-y-8 pb-20">
             <div className="flex items-center justify-between">
                 <h1 className="text-3xl font-bold tracking-tight">Tools/URL</h1>
                 <div className="flex gap-2">
@@ -231,24 +271,37 @@ export default function ToolsPage() {
             <div className="space-y-2">
                 <div className="flex items-center gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
                     <Checkbox
-                        checked={filteredItems.length > 0 && selectedItems.size === filteredItems.length}
+                        checked={sortedItems.length > 0 && selectedItems.size === sortedItems.length}
                         onCheckedChange={toggleSelectAll}
                     />
 
-                    <div className="w-[15%]">Name</div>
-                    <div className="w-[20%]">URL</div>
-                    <div className="flex-1">Remarks</div>
-                    <div className="w-[120px]">Category</div>
-                    <div className="w-[120px]">Sub-Category</div>
+                    <div className="w-10 font-medium cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('created_at')}>
+                        No. {renderSortIcon('created_at')}
+                    </div>
+                    <div className="w-[15%] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('name')}>
+                        Name {renderSortIcon('name')}
+                    </div>
+                    <div className="w-[20%] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('url')}>
+                        URL {renderSortIcon('url')}
+                    </div>
+                    <div className="flex-1 cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('remarks')}>
+                        Remarks {renderSortIcon('remarks')}
+                    </div>
+                    <div className="w-[120px] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('category')}>
+                        Category {renderSortIcon('category')}
+                    </div>
+                    <div className="w-[120px] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('sub_category')}>
+                        Sub-Category {renderSortIcon('sub_category')}
+                    </div>
                     <div className="w-20">Actions</div>
                 </div>
 
-                {filteredItems.length === 0 ? (
+                {sortedItems.length === 0 ? (
                     <div className="p-8 text-center text-sm text-muted-foreground border rounded-md border-dashed">
                         No URLs found.
                     </div>
                 ) : (
-                    filteredItems.map(item => {
+                    sortedItems.map((item) => {
                         const isEditing = editingId === item.id
                         const youtubeId = getYoutubeId(item.url)
                         const thumbnailUrl = youtubeId
@@ -261,6 +314,7 @@ export default function ToolsPage() {
                                     checked={selectedItems.has(item.id)}
                                     onCheckedChange={() => toggleSelection(item.id)}
                                 />
+                                <div className="w-10 text-muted-foreground text-xs">{item.displayIndex}</div>
 
 
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Trash, ExternalLink, Pencil, Check, X, Filter } from "lucide-react"
+import { Plus, Search, Trash, ExternalLink, Pencil, Check, X, Filter, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import { CategoryManager } from "@/components/category-manager"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -28,6 +28,7 @@ export default function YoutubePage() {
     // Selection & Filters
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
     const [categoryFilter, setCategoryFilter] = useState<string>("All")
+    const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
 
     useEffect(() => {
         fetchItems()
@@ -144,10 +145,10 @@ export default function YoutubePage() {
     }
 
     const toggleSelectAll = () => {
-        if (selectedItems.size === filteredItems.length) {
+        if (selectedItems.size === sortedItems.length) {
             setSelectedItems(new Set())
         } else {
-            setSelectedItems(new Set(filteredItems.map(item => item.id)))
+            setSelectedItems(new Set(sortedItems.map(item => item.id)))
         }
     }
 
@@ -160,13 +161,54 @@ export default function YoutubePage() {
         toast.success("Selected videos deleted successfully")
     }
 
+    const handleSort = (key: string) => {
+        setSortConfig(current => {
+            if (current?.key === key) {
+                return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+            }
+            return { key, direction: 'asc' }
+        })
+    }
+
     const filteredItems = items.filter(item => {
         const categoryName = item.category?.name || ''
-        const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) ||
+        return item.name.toLowerCase().includes(search.toLowerCase()) ||
             categoryName.toLowerCase().includes(search.toLowerCase())
+    }).filter(item => {
         const matchesCategory = categoryFilter === "All" || (item.category_id === categoryFilter) || (categoryFilter === "Uncategorized" && !item.category_id)
+        return matchesCategory
+    })
 
-        return matchesSearch && matchesCategory
+    // Assign display index based on creation time (Oldest = 1)
+    const itemsWithIndex = [...filteredItems].sort((a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    ).map((item, index) => ({ ...item, displayIndex: index + 1 }))
+
+    const sortedItems = itemsWithIndex.sort((a, b) => {
+        if (!sortConfig) {
+            // Default sort: Newest first (descending index)
+            return b.displayIndex - a.displayIndex
+        }
+        const { key, direction } = sortConfig
+
+        if (key === 'created_at') {
+            return direction === 'asc' ? a.displayIndex - b.displayIndex : b.displayIndex - a.displayIndex
+        }
+
+        let aValue = a[key]
+        let bValue = b[key]
+
+        if (key === 'category') {
+            aValue = a.category?.name || ''
+            bValue = b.category?.name || ''
+        } else {
+            aValue = aValue || ''
+            bValue = bValue || ''
+        }
+
+        if (aValue < bValue) return direction === 'asc' ? -1 : 1
+        if (aValue > bValue) return direction === 'asc' ? 1 : -1
+        return 0
     })
 
     const getYoutubeId = (url: string) => {
@@ -193,88 +235,47 @@ export default function YoutubePage() {
         }
     }
 
+    const renderSortIcon = (key: string) => {
+        if (sortConfig?.key !== key) return <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />
+        if (sortConfig.direction === 'asc') return <ArrowUp className="ml-2 h-4 w-4 text-foreground" />
+        return <ArrowDown className="ml-2 h-4 w-4 text-foreground" />
+    }
+
     return (
         <div className="space-y-8 pb-20">
-            <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold tracking-tight">Youtube</h1>
-                <div className="flex gap-2">
-                    <CategoryManager tableName="youtube_categories" title="Categories" onUpdate={fetchCategories} />
-                    <Button onClick={handleCreate}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Video
-                    </Button>
-                </div>
-            </div>
+            {/* ... existing code ... */}
 
-            <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2">
-                    <div className="relative flex-1 max-w-sm">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search videos..."
-                            className="pl-8"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                    </div>
-
-                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                        <SelectTrigger className="w-[180px]">
-                            <div className="flex items-center gap-2">
-                                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                                <SelectValue placeholder="Category" />
-                            </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Categories</SelectItem>
-                            {categories.map(cat => (
-                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                            ))}
-                            <SelectItem value="Uncategorized">Uncategorized</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    {categoryFilter !== "All" && (
-                        <Button variant="ghost" size="icon" onClick={() => setCategoryFilter("All")}>
-                            <X className="h-4 w-4" />
-                        </Button>
-                    )}
-                </div>
-
-                {selectedItems.size > 0 && (
-                    <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md animate-in fade-in slide-in-from-top-2">
-                        <span className="text-sm font-medium px-2">{selectedItems.size} selected</span>
-                        <div className="h-4 w-px bg-border mx-2" />
-                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={handleBulkDelete}>
-                            <Trash className="mr-2 h-3 w-3" />
-                            Delete Selected
-                        </Button>
-                        <div className="flex-1" />
-                        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setSelectedItems(new Set())}>Cancel</Button>
-                    </div>
-                )}
-            </div>
-
-            <div className="space-y-4">
+            <div className="space-y-2">
                 <div className="flex items-center gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
                     <Checkbox
-                        checked={filteredItems.length > 0 && selectedItems.size === filteredItems.length}
+                        checked={sortedItems.length > 0 && selectedItems.size === sortedItems.length}
                         onCheckedChange={toggleSelectAll}
                     />
+                    <div className="w-10 font-medium cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('created_at')}>
+                        No. {renderSortIcon('created_at')}
+                    </div>
                     <div className="w-[120px]">Thumbnail</div>
-                    <div className="flex-1">Video Name</div>
-                    <div className="w-[180px]">Category</div>
-                    <div className="w-[200px]">URL</div>
-                    <div className="w-[200px]">Note</div>
+                    <div className="flex-1 cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('name')}>
+                        Video Name {renderSortIcon('name')}
+                    </div>
+                    <div className="w-[180px] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('category')}>
+                        Category {renderSortIcon('category')}
+                    </div>
+                    <div className="w-[200px] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('url')}>
+                        URL {renderSortIcon('url')}
+                    </div>
+                    <div className="w-[200px] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('note')}>
+                        Note {renderSortIcon('note')}
+                    </div>
                     <div className="w-20">Actions</div>
                 </div>
 
-                {filteredItems.length === 0 ? (
+                {sortedItems.length === 0 ? (
                     <div className="p-8 text-center text-sm text-muted-foreground border rounded-md border-dashed">
                         No videos found.
                     </div>
                 ) : (
-                    filteredItems.map(item => {
+                    sortedItems.map((item) => {
                         const videoId = getYoutubeId(item.url)
                         const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null
                         const isEditing = editingId === item.id
@@ -285,6 +286,7 @@ export default function YoutubePage() {
                                     checked={selectedItems.has(item.id)}
                                     onCheckedChange={() => toggleSelection(item.id)}
                                 />
+                                <div className="w-10 text-muted-foreground text-xs">{item.displayIndex}</div>
                                 <div className="relative group/thumbnail">
                                     <div className="w-[120px] h-[68px] bg-muted rounded-md overflow-hidden shrink-0 flex items-center justify-center cursor-pointer">
                                         {thumbnailUrl ? (
