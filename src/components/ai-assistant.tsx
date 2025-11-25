@@ -14,11 +14,11 @@ export function AIAssistant() {
     const [inputValue, setInputValue] = useState('')
     const chatHelpers = useChat({
         maxSteps: 5,
-        onError: (err) => {
+        onError: (err: any) => {
             console.error("AI Chat Error:", err)
             toast.error("AI Error: " + err.message)
         }
-    })
+    } as any)
 
     // Cast to any to access available helpers since types seem mismatched
     const { messages, append, sendMessage, isLoading, error } = chatHelpers as any

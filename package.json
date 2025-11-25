@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.43",
+    "@ai-sdk/google-vertex": "^3.0.78",
     "@ai-sdk/openai": "^2.0.72",
     "@ai-sdk/react": "^2.0.101",
     "@radix-ui/react-checkbox": "^1.3.3",

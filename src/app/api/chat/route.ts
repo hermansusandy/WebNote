@@ -1,4 +1,4 @@
-import { google } from '@ai-sdk/google'
+import { vertex } from '@ai-sdk/google-vertex'
 // Force rebuild
 import { streamText, tool } from 'ai'
 import { z } from 'zod'
@@ -32,6 +32,10 @@ export async function POST(req: Request) {
 
     const { data: { user } } = await supabase.auth.getUser()
 
+    if (user) {
+        console.log("Route User ID:", user.id)
+    }
+
     if (!user) {
         console.error("No authenticated user found")
         // We can still proceed, but tools might fail if they need auth.
@@ -39,11 +43,12 @@ export async function POST(req: Request) {
         // For now, let's let it proceed but tools will check for user.
     }
 
-    const result = streamText({
-        model: google('gemini-1.5-pro-latest'),
-        messages,
-        maxSteps: 5,
-        system: `You are a helpful AI assistant for a note - taking app called WebNote.
+    try {
+        const result = streamText({
+            model: vertex('gemini-1.5-flash-001'),
+            messages,
+            maxSteps: 5,
+            system: `You are a helpful AI assistant for a note - taking app called WebNote.
     You can help users by answering questions and managing their content.
 
     Capabilities:
@@ -59,406 +64,410 @@ export async function POST(req: Request) {
     - To delete or update something, FIRST search for it to get the ID, then perform the action.
     
     Always be concise and friendly.`,
-        tools: {
-            createPage: tool({
-                description: 'Create a new page in the note-taking app. Use markdown for content (e.g. "- [ ] task" for todo lists).',
-                parameters: z.object({
-                    title: z.string().describe('The title of the page'),
-                    content: z.string().describe('The initial content of the page (markdown supported)'),
-                }),
-                execute: async (args: any) => {
-                    const { title, content } = args
-                    console.log("Executing createPage tool:", title)
+            tools: {
+                createPage: tool({
+                    description: 'Create a new page in the note-taking app. Use markdown for content (e.g. "- [ ] task" for todo lists).',
+                    parameters: z.object({
+                        title: z.string().describe('The title of the page'),
+                        content: z.string().describe('The initial content of the page (markdown supported)'),
+                    }),
+                    execute: async (args: any) => {
+                        const { title, content } = args
+                        console.log("Executing createPage tool:", title)
 
-                    if (!user) return 'Error: You must be logged in to create a page.'
+                        if (!user) return 'Error: You must be logged in to create a page.'
 
-                    const { data, error } = await supabase
-                        .from('pages')
-                        .insert([
-                            { title, content, user_id: user.id, updated_at: new Date().toISOString() }
-                        ])
-                        .select()
-                        .single()
-
-                    if (error) {
-                        console.error("Error creating page:", error)
-                        return `Failed to create page: ${error.message} `
-                    }
-
-                    console.log("Page created successfully:", data.id)
-                    return `Page "${title}" created successfully with ID ${data.id}.`
-                },
-            }),
-            createLearning: tool({
-                description: 'Create a new learning goal',
-                parameters: z.object({
-                    title: z.string().describe('The title of the learning goal'),
-                    priority: z.enum(['Low', 'Medium', 'High']).optional().describe('Priority of the goal'),
-                    status: z.enum(['Planned', 'In Progress', 'Completed']).optional().describe('Status of the goal'),
-                }),
-                execute: async (args: any) => {
-                    const { title, priority = 'Medium', status = 'Planned' } = args
-                    console.log("Executing createLearning tool:", title)
-                    if (!user) return 'Error: You must be logged in to create a learning goal.'
-
-                    const { data, error } = await supabase
-                        .from('learning_titles')
-                        .insert([{ user_id: user.id, title, priority, status }])
-                        .select()
-                        .single()
-
-                    if (error) {
-                        console.error("Error creating learning goal:", error)
-                        return `Failed to create learning goal: ${error.message} `
-                    }
-                    return `Learning goal "${title}" created successfully.`
-                },
-            }),
-            createReminder: tool({
-                description: 'Create a new reminder',
-                parameters: z.object({
-                    title: z.string().describe('The title of the reminder'),
-                    due_at: z.string().describe('The due date and time (ISO string or natural language to be converted)'),
-                }),
-                execute: async (args: any) => {
-                    const { title, due_at } = args
-                    console.log("Executing createReminder tool:", title)
-                    if (!user) return 'Error: You must be logged in to create a reminder.'
-
-                    const { data, error } = await supabase
-                        .from('reminders')
-                        .insert([{ user_id: user.id, title, due_at: due_at }])
-                        .select()
-                        .single()
-
-                    if (error) {
-                        console.error("Error creating reminder:", error)
-                        return `Failed to create reminder: ${error.message} `
-                    }
-                    return `Reminder "${title}" created successfully.`
-                },
-            }),
-            createWebUrl: tool({
-                description: 'Create a new Web URL entry in the Tools/URL page',
-                parameters: z.object({
-                    name: z.string().describe('The name of the website or tool'),
-                    url: z.string().describe('The URL of the website'),
-                    category: z.string().optional().describe('The category (e.g., "Development", "Design"). Defaults to "General"'),
-                    remarks: z.string().optional().describe('Optional remarks or notes about the URL'),
-                }),
-                execute: async (args: any) => {
-                    const { name, url, category = 'General', remarks = '' } = args
-                    console.log("Executing createWebUrl tool:", name)
-                    if (!user) return 'Error: You must be logged in to create a Web URL.'
-
-                    const { data, error } = await supabase
-                        .from('web_urls')
-                        .insert([{
-                            user_id: user.id,
-                            name,
-                            url,
-                            category,
-                            remarks
-                        }])
-                        .select()
-                        .single()
-
-                    if (error) {
-                        console.error("Error creating Web URL:", error)
-                        return `Failed to create Web URL: ${error.message} `
-                    }
-                    return `Web URL "${name}" created successfully.`
-                },
-            }),
-            createYoutubeVideo: tool({
-                description: 'Create a new YouTube video entry',
-                parameters: z.object({
-                    name: z.string().describe('The title of the video'),
-                    url: z.string().describe('The YouTube URL'),
-                    categoryName: z.string().optional().describe('The category name. Will look up or create if needed. Defaults to "General"'),
-                    note: z.string().optional().describe('Optional notes about the video'),
-                }),
-                execute: async (args: any) => {
-                    const { name, url, categoryName = 'General', note = '' } = args
-                    console.log("Executing createYoutubeVideo tool:", name)
-                    if (!user) return 'Error: You must be logged in to create a YouTube video.'
-
-                    // 1. Find or create category
-                    let categoryId: string | null = null
-
-                    const { data: existingCategories } = await supabase
-                        .from('youtube_categories')
-                        .select('id')
-                        .eq('user_id', user.id)
-                        .ilike('name', categoryName) // Case-insensitive match
-                        .limit(1)
-
-                    if (existingCategories && existingCategories.length > 0) {
-                        categoryId = existingCategories[0].id
-                    } else {
-                        // Create new category
-                        const { data: newCategory, error: catError } = await supabase
-                            .from('youtube_categories')
-                            .insert({ user_id: user.id, name: categoryName })
-                            .select('id')
+                        const { data, error } = await supabase
+                            .from('pages')
+                            .insert([
+                                { title, content, user_id: user.id, updated_at: new Date().toISOString() }
+                            ])
+                            .select()
                             .single()
 
-                        if (catError) {
-                            console.error("Error creating YouTube category:", catError)
-                            return `Failed to create category "${categoryName}": ${catError.message} `
+                        if (error) {
+                            console.error("Error creating page:", error)
+                            return `Failed to create page: ${error.message} `
                         }
-                        categoryId = newCategory.id
-                    }
 
-                    // 2. Create video item
-                    const { data, error } = await supabase
-                        .from('youtube_items')
-                        .insert([{
-                            user_id: user.id,
-                            name,
-                            url,
-                            category_id: categoryId,
-                            note
-                        }])
-                        .select()
-                        .single()
+                        console.log("Page created successfully:", data.id)
+                        return `Page "${title}" created successfully with ID ${data.id}.`
+                    },
+                } as any),
+                createLearning: tool({
+                    description: 'Create a new learning goal',
+                    parameters: z.object({
+                        title: z.string().describe('The title of the learning goal'),
+                        priority: z.enum(['Low', 'Medium', 'High']).optional().describe('Priority of the goal'),
+                        status: z.enum(['Planned', 'In Progress', 'Completed']).optional().describe('Status of the goal'),
+                    }),
+                    execute: async (args: any) => {
+                        const { title, priority = 'Medium', status = 'Planned' } = args
+                        console.log("Executing createLearning tool:", title)
+                        if (!user) return 'Error: You must be logged in to create a learning goal.'
 
-                    if (error) {
-                        console.error("Error creating YouTube video:", error)
-                        return `Failed to create YouTube video: ${error.message} `
-                    }
-                    return `YouTube video "${name}" created successfully in category "${categoryName}".`
-                },
-            }),
-            search: tool({
-                description: 'Search for resources (pages, learning goals, reminders, URLs, videos) by query',
-                parameters: z.object({
-                    query: z.string().describe('The search query'),
-                }),
-                execute: async (args: any) => {
-                    const { query } = args
-                    console.log("Executing search tool:", query)
-                    if (!user) return 'Error: You must be logged in to search.'
+                        const { data, error } = await supabase
+                            .from('learning_titles')
+                            .insert([{ user_id: user.id, title, priority, status }])
+                            .select()
+                            .single()
 
-                    const results: any[] = []
+                        if (error) {
+                            console.error("Error creating learning goal:", error)
+                            return `Failed to create learning goal: ${error.message} `
+                        }
+                        return `Learning goal "${title}" created successfully.`
+                    },
+                } as any),
+                createReminder: tool({
+                    description: 'Create a new reminder',
+                    parameters: z.object({
+                        title: z.string().describe('The title of the reminder'),
+                        due_at: z.string().describe('The due date and time (ISO string or natural language to be converted)'),
+                    }),
+                    execute: async (args: any) => {
+                        const { title, due_at } = args
+                        console.log("Executing createReminder tool:", title)
+                        if (!user) return 'Error: You must be logged in to create a reminder.'
 
-                    // Helper to search a table
-                    const searchTable = async (table: string, columns: string, type: string) => {
-                        const { data } = await supabase
-                            .from(table)
-                            .select(columns)
+                        const { data, error } = await supabase
+                            .from('reminders')
+                            .insert([{ user_id: user.id, title, due_at: due_at }])
+                            .select()
+                            .single()
+
+                        if (error) {
+                            console.error("Error creating reminder:", error)
+                            return `Failed to create reminder: ${error.message} `
+                        }
+                        return `Reminder "${title}" created successfully.`
+                    },
+                } as any),
+                createWebUrl: tool({
+                    description: 'Create a new Web URL entry in the Tools/URL page',
+                    parameters: z.object({
+                        name: z.string().describe('The name of the website or tool'),
+                        url: z.string().describe('The URL of the website'),
+                        category: z.string().optional().describe('The category (e.g., "Development", "Design"). Defaults to "General"'),
+                        remarks: z.string().optional().describe('Optional remarks or notes about the URL'),
+                    }),
+                    execute: async (args: any) => {
+                        const { name, url, category = 'General', remarks = '' } = args
+                        console.log("Executing createWebUrl tool:", name)
+                        if (!user) return 'Error: You must be logged in to create a Web URL.'
+
+                        const { data, error } = await supabase
+                            .from('web_urls')
+                            .insert([{
+                                user_id: user.id,
+                                name,
+                                url,
+                                category,
+                                remarks
+                            }])
+                            .select()
+                            .single()
+
+                        if (error) {
+                            console.error("Error creating Web URL:", error)
+                            return `Failed to create Web URL: ${error.message} `
+                        }
+                        return `Web URL "${name}" created successfully.`
+                    },
+                } as any),
+                createYoutubeVideo: tool({
+                    description: 'Create a new YouTube video entry',
+                    parameters: z.object({
+                        name: z.string().describe('The title of the video'),
+                        url: z.string().describe('The YouTube URL'),
+                        categoryName: z.string().optional().describe('The category name. Will look up or create if needed. Defaults to "General"'),
+                        note: z.string().optional().describe('Optional notes about the video'),
+                    }),
+                    execute: async (args: any) => {
+                        const { name, url, categoryName = 'General', note = '' } = args
+                        console.log("Executing createYoutubeVideo tool:", name)
+                        if (!user) return 'Error: You must be logged in to create a YouTube video.'
+
+                        // 1. Find or create category
+                        let categoryId: string | null = null
+
+                        const { data: existingCategories } = await supabase
+                            .from('youtube_categories')
+                            .select('id')
+                            .eq('user_id', user.id)
+                            .ilike('name', categoryName) // Case-insensitive match
+                            .limit(1)
+
+                        if (existingCategories && existingCategories.length > 0) {
+                            categoryId = existingCategories[0].id
+                        } else {
+                            // Create new category
+                            const { data: newCategory, error: catError } = await supabase
+                                .from('youtube_categories')
+                                .insert({ user_id: user.id, name: categoryName })
+                                .select('id')
+                                .single()
+
+                            if (catError) {
+                                console.error("Error creating YouTube category:", catError)
+                                return `Failed to create category "${categoryName}": ${catError.message} `
+                            }
+                            categoryId = newCategory.id
+                        }
+
+                        // 2. Create video item
+                        const { data, error } = await supabase
+                            .from('youtube_items')
+                            .insert([{
+                                user_id: user.id,
+                                name,
+                                url,
+                                category_id: categoryId,
+                                note
+                            }])
+                            .select()
+                            .single()
+
+                        if (error) {
+                            console.error("Error creating YouTube video:", error)
+                            return `Failed to create YouTube video: ${error.message} `
+                        }
+                        return `YouTube video "${name}" created successfully in category "${categoryName}".`
+                    },
+                } as any),
+                search: tool({
+                    description: 'Search for resources (pages, learning goals, reminders, URLs, videos) by query',
+                    parameters: z.object({
+                        query: z.string().describe('The search query'),
+                    }),
+                    execute: async (args: any) => {
+                        const { query } = args
+                        console.log("Executing search tool:", query)
+                        if (!user) return 'Error: You must be logged in to search.'
+
+                        const results: any[] = []
+
+                        // Helper to search a table
+                        const searchTable = async (table: string, columns: string, type: string) => {
+                            const { data } = await supabase
+                                .from(table)
+                                .select(columns)
+                                .eq('user_id', user.id)
+                                .or(`title.ilike.% ${query}%, content.ilike.% ${query}% `)
+                                .limit(5)
+
+                            if (data) {
+                                data.forEach((item: any) => {
+                                    results.push({
+                                        id: item.id,
+                                        type,
+                                        title: item.title || item.name,
+                                        snippet: item.content ? item.content.substring(0, 100) : (item.url || item.note || '')
+                                    })
+                                })
+                            }
+                        }
+
+                        // Search Pages
+                        const { data: pages } = await supabase
+                            .from('pages')
+                            .select('id, title, content')
                             .eq('user_id', user.id)
                             .or(`title.ilike.% ${query}%, content.ilike.% ${query}% `)
-                            .limit(5)
+                            .limit(3)
+                        pages?.forEach(p => results.push({ id: p.id, type: 'page', title: p.title, snippet: p.content?.substring(0, 100) }))
 
-                        if (data) {
-                            data.forEach((item: any) => {
-                                results.push({
-                                    id: item.id,
-                                    type,
-                                    title: item.title || item.name,
-                                    snippet: item.content ? item.content.substring(0, 100) : (item.url || item.note || '')
-                                })
-                            })
+                        // Search Learning
+                        const { data: learning } = await supabase
+                            .from('learning_titles')
+                            .select('id, title')
+                            .eq('user_id', user.id)
+                            .ilike('title', `% ${query}% `)
+                            .limit(3)
+                        learning?.forEach(l => results.push({ id: l.id, type: 'learning', title: l.title, snippet: '' }))
+
+                        // Search Reminders
+                        const { data: reminders } = await supabase
+                            .from('reminders')
+                            .select('id, title')
+                            .eq('user_id', user.id)
+                            .ilike('title', `% ${query}% `)
+                            .limit(3)
+                        reminders?.forEach(r => results.push({ id: r.id, type: 'reminder', title: r.title, snippet: '' }))
+
+                        // Search Web URLs
+                        const { data: webUrls } = await supabase
+                            .from('web_urls')
+                            .select('id, name, url, remarks')
+                            .eq('user_id', user.id)
+                            .or(`name.ilike.% ${query}%, remarks.ilike.% ${query}% `)
+                            .limit(3)
+                        webUrls?.forEach(w => results.push({ id: w.id, type: 'web_url', title: w.name, snippet: w.url }))
+
+                        // Search YouTube
+                        const { data: youtube } = await supabase
+                            .from('youtube_items')
+                            .select('id, name, url, note')
+                            .eq('user_id', user.id)
+                            .or(`name.ilike.% ${query}%, note.ilike.% ${query}% `)
+                            .limit(3)
+                        youtube?.forEach(y => results.push({ id: y.id, type: 'youtube_video', title: y.name, snippet: y.url }))
+
+                        if (results.length === 0) return "No results found."
+                        return JSON.stringify(results)
+                    },
+                } as any),
+                deleteResource: tool({
+                    description: 'Delete a resource by ID and type',
+                    parameters: z.object({
+                        id: z.string().describe('The ID of the resource to delete'),
+                        type: z.enum(['page', 'learning', 'reminder', 'web_url', 'youtube_video']).describe('The type of resource'),
+                    }),
+                    execute: async (args: any) => {
+                        const { id, type } = args
+                        console.log(`Executing deleteResource tool: ${type} ${id} `)
+                        if (!user) return 'Error: You must be logged in to delete resources.'
+
+                        let table = ''
+                        switch (type) {
+                            case 'page': table = 'pages'; break;
+                            case 'learning': table = 'learning_titles'; break;
+                            case 'reminder': table = 'reminders'; break;
+                            case 'web_url': table = 'web_urls'; break;
+                            case 'youtube_video': table = 'youtube_items'; break;
                         }
-                    }
 
-                    // Search Pages
-                    const { data: pages } = await supabase
-                        .from('pages')
-                        .select('id, title, content')
-                        .eq('user_id', user.id)
-                        .or(`title.ilike.% ${query}%, content.ilike.% ${query}% `)
-                        .limit(3)
-                    pages?.forEach(p => results.push({ id: p.id, type: 'page', title: p.title, snippet: p.content?.substring(0, 100) }))
+                        const { error } = await supabase
+                            .from(table)
+                            .delete()
+                            .eq('id', id)
+                            .eq('user_id', user.id)
 
-                    // Search Learning
-                    const { data: learning } = await supabase
-                        .from('learning_titles')
-                        .select('id, title')
-                        .eq('user_id', user.id)
-                        .ilike('title', `% ${query}% `)
-                        .limit(3)
-                    learning?.forEach(l => results.push({ id: l.id, type: 'learning', title: l.title, snippet: '' }))
+                        if (error) {
+                            console.error(`Error deleting ${type}: `, error)
+                            return `Failed to delete ${type}: ${error.message} `
+                        }
+                        return `${type} with ID ${id} deleted successfully.`
+                    },
+                } as any),
+                updatePage: tool({
+                    description: 'Update a page title or content',
+                    parameters: z.object({
+                        id: z.string().describe('The ID of the page to update'),
+                        title: z.string().optional().describe('The new title'),
+                        content: z.string().optional().describe('The new content'),
+                    }),
+                    execute: async (args: any) => {
+                        const { id, title, content } = args
+                        console.log("Executing updatePage tool:", id)
+                        if (!user) return 'Error: You must be logged in to update pages.'
 
-                    // Search Reminders
-                    const { data: reminders } = await supabase
-                        .from('reminders')
-                        .select('id, title')
-                        .eq('user_id', user.id)
-                        .ilike('title', `% ${query}% `)
-                        .limit(3)
-                    reminders?.forEach(r => results.push({ id: r.id, type: 'reminder', title: r.title, snippet: '' }))
+                        const updates: any = { updated_at: new Date().toISOString() }
+                        if (title) updates.title = title
+                        if (content) updates.content = content
 
-                    // Search Web URLs
-                    const { data: webUrls } = await supabase
-                        .from('web_urls')
-                        .select('id, name, url, remarks')
-                        .eq('user_id', user.id)
-                        .or(`name.ilike.% ${query}%, remarks.ilike.% ${query}% `)
-                        .limit(3)
-                    webUrls?.forEach(w => results.push({ id: w.id, type: 'web_url', title: w.name, snippet: w.url }))
+                        const { error } = await supabase
+                            .from('pages')
+                            .update(updates)
+                            .eq('id', id)
+                            .eq('user_id', user.id)
 
-                    // Search YouTube
-                    const { data: youtube } = await supabase
-                        .from('youtube_items')
-                        .select('id, name, url, note')
-                        .eq('user_id', user.id)
-                        .or(`name.ilike.% ${query}%, note.ilike.% ${query}% `)
-                        .limit(3)
-                    youtube?.forEach(y => results.push({ id: y.id, type: 'youtube_video', title: y.name, snippet: y.url }))
+                        if (error) return `Failed to update page: ${error.message} `
+                        return `Page updated successfully.`
+                    },
+                } as any),
+                updateLearning: tool({
+                    description: 'Update a learning goal',
+                    parameters: z.object({
+                        id: z.string().describe('The ID of the learning goal'),
+                        title: z.string().optional(),
+                        priority: z.enum(['Low', 'Medium', 'High']).optional(),
+                        status: z.enum(['Planned', 'In Progress', 'Completed']).optional(),
+                    }),
+                    execute: async (args: any) => {
+                        const { id, title, priority, status } = args
+                        console.log("Executing updateLearning tool:", id)
+                        if (!user) return 'Error: You must be logged in.'
 
-                    if (results.length === 0) return "No results found."
-                    return JSON.stringify(results)
-                },
-            }),
-            deleteResource: tool({
-                description: 'Delete a resource by ID and type',
-                parameters: z.object({
-                    id: z.string().describe('The ID of the resource to delete'),
-                    type: z.enum(['page', 'learning', 'reminder', 'web_url', 'youtube_video']).describe('The type of resource'),
-                }),
-                execute: async (args: any) => {
-                    const { id, type } = args
-                    console.log(`Executing deleteResource tool: ${type} ${id} `)
-                    if (!user) return 'Error: You must be logged in to delete resources.'
+                        const updates: any = {}
+                        if (title) updates.title = title
+                        if (priority) updates.priority = priority
+                        if (status) updates.status = status
 
-                    let table = ''
-                    switch (type) {
-                        case 'page': table = 'pages'; break;
-                        case 'learning': table = 'learning_titles'; break;
-                        case 'reminder': table = 'reminders'; break;
-                        case 'web_url': table = 'web_urls'; break;
-                        case 'youtube_video': table = 'youtube_items'; break;
-                    }
+                        const { error } = await supabase
+                            .from('learning_titles')
+                            .update(updates)
+                            .eq('id', id)
+                            .eq('user_id', user.id)
 
-                    const { error } = await supabase
-                        .from(table)
-                        .delete()
-                        .eq('id', id)
-                        .eq('user_id', user.id)
+                        if (error) return `Failed to update learning goal: ${error.message} `
+                        return `Learning goal updated successfully.`
+                    },
+                } as any),
+                updateWebUrl: tool({
+                    description: 'Update a Web URL',
+                    parameters: z.object({
+                        id: z.string().describe('The ID of the Web URL'),
+                        name: z.string().optional(),
+                        url: z.string().optional(),
+                        category: z.string().optional(),
+                        remarks: z.string().optional(),
+                    }),
+                    execute: async (args: any) => {
+                        const { id, name, url, category, remarks } = args
+                        console.log("Executing updateWebUrl tool:", id)
+                        if (!user) return 'Error: You must be logged in.'
 
-                    if (error) {
-                        console.error(`Error deleting ${type}: `, error)
-                        return `Failed to delete ${type}: ${error.message} `
-                    }
-                    return `${type} with ID ${id} deleted successfully.`
-                },
-            }),
-            updatePage: tool({
-                description: 'Update a page title or content',
-                parameters: z.object({
-                    id: z.string().describe('The ID of the page to update'),
-                    title: z.string().optional().describe('The new title'),
-                    content: z.string().optional().describe('The new content'),
-                }),
-                execute: async (args: any) => {
-                    const { id, title, content } = args
-                    console.log("Executing updatePage tool:", id)
-                    if (!user) return 'Error: You must be logged in to update pages.'
+                        const updates: any = {}
+                        if (name) updates.name = name
+                        if (url) updates.url = url
+                        if (category) updates.category = category
+                        if (remarks) updates.remarks = remarks
 
-                    const updates: any = { updated_at: new Date().toISOString() }
-                    if (title) updates.title = title
-                    if (content) updates.content = content
+                        const { error } = await supabase
+                            .from('web_urls')
+                            .update(updates)
+                            .eq('id', id)
+                            .eq('user_id', user.id)
 
-                    const { error } = await supabase
-                        .from('pages')
-                        .update(updates)
-                        .eq('id', id)
-                        .eq('user_id', user.id)
+                        if (error) return `Failed to update Web URL: ${error.message} `
+                        return `Web URL updated successfully.`
+                    },
+                } as any),
+                updateYoutubeVideo: tool({
+                    description: 'Update a YouTube video',
+                    parameters: z.object({
+                        id: z.string().describe('The ID of the video'),
+                        name: z.string().optional(),
+                        url: z.string().optional(),
+                        note: z.string().optional(),
+                    }),
+                    execute: async (args: any) => {
+                        const { id, name, url, note } = args
+                        console.log("Executing updateYoutubeVideo tool:", id)
+                        if (!user) return 'Error: You must be logged in.'
 
-                    if (error) return `Failed to update page: ${error.message} `
-                    return `Page updated successfully.`
-                },
-            }),
-            updateLearning: tool({
-                description: 'Update a learning goal',
-                parameters: z.object({
-                    id: z.string().describe('The ID of the learning goal'),
-                    title: z.string().optional(),
-                    priority: z.enum(['Low', 'Medium', 'High']).optional(),
-                    status: z.enum(['Planned', 'In Progress', 'Completed']).optional(),
-                }),
-                execute: async (args: any) => {
-                    const { id, title, priority, status } = args
-                    console.log("Executing updateLearning tool:", id)
-                    if (!user) return 'Error: You must be logged in.'
+                        const updates: any = {}
+                        if (name) updates.name = name
+                        if (url) updates.url = url
+                        if (note) updates.note = note
 
-                    const updates: any = {}
-                    if (title) updates.title = title
-                    if (priority) updates.priority = priority
-                    if (status) updates.status = status
+                        const { error } = await supabase
+                            .from('youtube_items')
+                            .update(updates)
+                            .eq('id', id)
+                            .eq('user_id', user.id)
 
-                    const { error } = await supabase
-                        .from('learning_titles')
-                        .update(updates)
-                        .eq('id', id)
-                        .eq('user_id', user.id)
+                        if (error) return `Failed to update YouTube video: ${error.message} `
+                        return `YouTube video updated successfully.`
+                    },
+                } as any),
+            },
+        } as any)
 
-                    if (error) return `Failed to update learning goal: ${error.message} `
-                    return `Learning goal updated successfully.`
-                },
-            }),
-            updateWebUrl: tool({
-                description: 'Update a Web URL',
-                parameters: z.object({
-                    id: z.string().describe('The ID of the Web URL'),
-                    name: z.string().optional(),
-                    url: z.string().optional(),
-                    category: z.string().optional(),
-                    remarks: z.string().optional(),
-                }),
-                execute: async (args: any) => {
-                    const { id, name, url, category, remarks } = args
-                    console.log("Executing updateWebUrl tool:", id)
-                    if (!user) return 'Error: You must be logged in.'
-
-                    const updates: any = {}
-                    if (name) updates.name = name
-                    if (url) updates.url = url
-                    if (category) updates.category = category
-                    if (remarks) updates.remarks = remarks
-
-                    const { error } = await supabase
-                        .from('web_urls')
-                        .update(updates)
-                        .eq('id', id)
-                        .eq('user_id', user.id)
-
-                    if (error) return `Failed to update Web URL: ${error.message} `
-                    return `Web URL updated successfully.`
-                },
-            }),
-            updateYoutubeVideo: tool({
-                description: 'Update a YouTube video',
-                parameters: z.object({
-                    id: z.string().describe('The ID of the video'),
-                    name: z.string().optional(),
-                    url: z.string().optional(),
-                    note: z.string().optional(),
-                }),
-                execute: async (args: any) => {
-                    const { id, name, url, note } = args
-                    console.log("Executing updateYoutubeVideo tool:", id)
-                    if (!user) return 'Error: You must be logged in.'
-
-                    const updates: any = {}
-                    if (name) updates.name = name
-                    if (url) updates.url = url
-                    if (note) updates.note = note
-
-                    const { error } = await supabase
-                        .from('youtube_items')
-                        .update(updates)
-                        .eq('id', id)
-                        .eq('user_id', user.id)
-
-                    if (error) return `Failed to update YouTube video: ${error.message} `
-                    return `YouTube video updated successfully.`
-                },
-            }),
-        },
-    })
-
-    return result.toTextStreamResponse()
+        return result.toTextStreamResponse()
+    } catch (error: any) {
+        console.error("AI Chat Error:", error)
+        return new Response(JSON.stringify({ error: error.message }), { status: 500 })
+    }
 }

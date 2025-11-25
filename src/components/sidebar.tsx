@@ -37,6 +37,7 @@ export function Sidebar({ className }: SidebarProps) {
     React.useEffect(() => {
         const getUser = async () => {
             const { data: { user } } = await supabase.auth.getUser()
+            console.log("Sidebar User ID:", user?.id)
             setUser(user)
             if (user) fetchPages(user.id)
         }
