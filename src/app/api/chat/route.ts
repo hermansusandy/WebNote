@@ -8,6 +8,7 @@ export const maxDuration = 30
 
 export async function POST(req: Request) {
     const { messages } = await req.json()
+    console.log("Chat API called with messages:", messages.length)
 
     const result = streamText({
         model: openai('gpt-4o'),
@@ -30,6 +31,7 @@ export async function POST(req: Request) {
                     content: z.string().describe('The initial content of the page (markdown supported)'),
                 }),
                 execute: async ({ title, content }: { title: string; content: string }) => {
+                    console.log("Executing createPage tool:", title)
                     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
                     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
                     const supabase = createClient(supabaseUrl, supabaseKey)
@@ -45,6 +47,7 @@ export async function POST(req: Request) {
                     }
 
                     if (!userId) {
+                        console.error("Error: Could not determine user")
                         return 'Error: Could not determine user to assign page to.'
                     }
 
@@ -57,9 +60,11 @@ export async function POST(req: Request) {
                         .single()
 
                     if (error) {
+                        console.error("Error creating page:", error)
                         return `Failed to create page: ${error.message}`
                     }
 
+                    console.log("Page created successfully:", data.id)
                     return `Page "${title}" created successfully with ID ${data.id}.`
                 },
             }),
@@ -71,6 +76,7 @@ export async function POST(req: Request) {
                     status: z.enum(['Planned', 'In Progress', 'Completed']).optional().describe('Status of the goal'),
                 }),
                 execute: async ({ title, priority = 'Medium', status = 'Planned' }) => {
+                    console.log("Executing createLearning tool:", title)
                     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
                     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
                     const supabase = createClient(supabaseUrl, supabaseKey)
@@ -89,7 +95,10 @@ export async function POST(req: Request) {
                         .select()
                         .single()
 
-                    if (error) return `Failed to create learning goal: ${error.message}`
+                    if (error) {
+                        console.error("Error creating learning goal:", error)
+                        return `Failed to create learning goal: ${error.message}`
+                    }
                     return `Learning goal "${title}" created successfully.`
                 },
             }),
@@ -100,6 +109,7 @@ export async function POST(req: Request) {
                     due_at: z.string().describe('The due date and time (ISO string or natural language to be converted)'),
                 }),
                 execute: async ({ title, due_at }) => {
+                    console.log("Executing createReminder tool:", title)
                     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
                     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
                     const supabase = createClient(supabaseUrl, supabaseKey)
@@ -118,7 +128,10 @@ export async function POST(req: Request) {
                         .select()
                         .single()
 
-                    if (error) return `Failed to create reminder: ${error.message}`
+                    if (error) {
+                        console.error("Error creating reminder:", error)
+                        return `Failed to create reminder: ${error.message}`
+                    }
                     return `Reminder "${title}" created successfully.`
                 },
             }),

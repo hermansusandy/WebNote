@@ -61,12 +61,18 @@ export default function ToolsPage() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
-        const { data } = await supabase.from('web_urls').insert({
+        const { data, error } = await supabase.from('web_urls').insert({
             user_id: user.id,
             name: 'New Web URL',
             url: 'https://example.com',
             category: 'General'
         }).select().single()
+
+        if (error) {
+            console.error("Error creating URL:", error)
+            toast.error(`Failed to create URL: ${error.message}`)
+            return
+        }
 
         if (data) {
             setItems([data, ...items])
@@ -128,7 +134,7 @@ export default function ToolsPage() {
     return (
         <div className="space-y-8 pb-20 p-8">
             <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold tracking-tight">Web URL Tools</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Tools/URL</h1>
                 <Button onClick={handleCreate}>
                     <Plus className="mr-2 h-4 w-4" />
                     New URL

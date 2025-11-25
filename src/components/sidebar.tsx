@@ -125,7 +125,7 @@ export function Sidebar({ className }: SidebarProps) {
         { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { name: "Learning", href: "/learning", icon: GraduationCap },
         { name: "Reminders", href: "/reminders", icon: Bell },
-        { name: "Tools", href: "/tools", icon: Package },
+        { name: "Tools/URL", href: "/tools", icon: Package },
         { name: "Youtube", href: "/youtube", icon: Youtube },
     ]
 
