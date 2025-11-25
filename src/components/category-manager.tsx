@@ -1,41 +1,31 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, Trash, Edit2, X, Check } from "lucide-react"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
-
-interface Category {
-    id: string
-    name: string
-    color?: string
-}
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Plus, Trash, Pencil, Check, X } from "lucide-react"
+import { supabase } from "@/lib/supabase/client"
+import { toast } from "sonner"
 
 interface CategoryManagerProps {
     tableName: string
+    title: string
     onUpdate: () => void
 }
 
-export function CategoryManager({ tableName, onUpdate }: CategoryManagerProps) {
-    const [categories, setCategories] = useState<Category[]>([])
-    const [newCategory, setNewCategory] = useState("")
+export function CategoryManager({ tableName, title, onUpdate }: CategoryManagerProps) {
+    const [items, setItems] = useState<any[]>([])
+    const [newItemName, setNewItemName] = useState("")
     const [editingId, setEditingId] = useState<string | null>(null)
-    const [editName, setEditName] = useState("")
-    const [loading, setLoading] = useState(true)
+    const [editingName, setEditingName] = useState("")
+    const [loading, setLoading] = useState(false)
 
     useEffect(() => {
-        fetchCategories()
+        fetchItems()
     }, [tableName])
 
-    const fetchCategories = async () => {
+    const fetchItems = async () => {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
@@ -45,88 +35,98 @@ export function CategoryManager({ tableName, onUpdate }: CategoryManagerProps) {
             .eq('user_id', user.id)
             .order('name')
 
-        if (data) setCategories(data)
-        setLoading(false)
+        if (data) setItems(data)
     }
 
     const handleAdd = async () => {
-        if (!newCategory.trim()) return
+        if (!newItemName.trim()) return
+        setLoading(true)
+
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
-        const { data } = await supabase
+        const { error } = await supabase
             .from(tableName)
-            .insert({ user_id: user.id, name: newCategory.trim() })
-            .select()
-            .single()
+            .insert({ user_id: user.id, name: newItemName.trim() })
 
-        if (data) {
-            setCategories([...categories, data])
-            setNewCategory("")
+        if (error) {
+            toast.error(`Failed to add item: ${error.message}`)
+        } else {
+            toast.success("Item added successfully")
+            setNewItemName("")
+            fetchItems()
+            onUpdate()
+        }
+        setLoading(false)
+    }
+
+    const handleUpdate = async (id: string) => {
+        if (!editingName.trim()) return
+
+        const { error } = await supabase
+            .from(tableName)
+            .update({ name: editingName.trim() })
+            .eq('id', id)
+
+        if (error) {
+            toast.error(`Failed to update item: ${error.message}`)
+        } else {
+            toast.success("Item updated successfully")
+            setEditingId(null)
+            fetchItems()
             onUpdate()
         }
     }
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Delete this category?")) return
+        if (!confirm("Are you sure?")) return
 
-        await supabase.from(tableName).delete().eq('id', id)
-        setCategories(categories.filter(c => c.id !== id))
-        onUpdate()
-    }
-
-    const startEdit = (category: Category) => {
-        setEditingId(category.id)
-        setEditName(category.name)
-    }
-
-    const saveEdit = async () => {
-        if (!editingId || !editName.trim()) return
-
-        await supabase
+        const { error } = await supabase
             .from(tableName)
-            .update({ name: editName.trim() })
-            .eq('id', editingId)
+            .delete()
+            .eq('id', id)
 
-        setCategories(categories.map(c => c.id === editingId ? { ...c, name: editName.trim() } : c))
-        setEditingId(null)
-        onUpdate()
+        if (error) {
+            toast.error(`Failed to delete item: ${error.message}`)
+        } else {
+            toast.success("Item deleted successfully")
+            fetchItems()
+            onUpdate()
+        }
     }
 
     return (
         <Dialog>
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm">Manage Categories</Button>
+                <Button variant="outline" size="sm">Manage {title}</Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Manage Categories</DialogTitle>
+                    <DialogTitle>Manage {title}</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4 mt-4">
+                <div className="space-y-4">
                     <div className="flex gap-2">
                         <Input
-                            placeholder="New category name..."
-                            value={newCategory}
-                            onChange={(e) => setNewCategory(e.target.value)}
+                            placeholder={`New ${title} name`}
+                            value={newItemName}
+                            onChange={(e) => setNewItemName(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
                         />
-                        <Button onClick={handleAdd} size="icon">
+                        <Button onClick={handleAdd} disabled={loading}>
                             <Plus className="h-4 w-4" />
                         </Button>
                     </div>
-
                     <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                        {categories.map(category => (
-                            <div key={category.id} className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
-                                {editingId === category.id ? (
+                        {items.map(item => (
+                            <div key={item.id} className="flex items-center gap-2 p-2 border rounded-md">
+                                {editingId === item.id ? (
                                     <>
                                         <Input
-                                            value={editName}
-                                            onChange={(e) => setEditName(e.target.value)}
+                                            value={editingName}
+                                            onChange={(e) => setEditingName(e.target.value)}
                                             className="h-8"
-                                            autoFocus
                                         />
-                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500" onClick={saveEdit}>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => handleUpdate(item.id)}>
                                             <Check className="h-4 w-4" />
                                         </Button>
                                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingId(null)}>
@@ -135,22 +135,20 @@ export function CategoryManager({ tableName, onUpdate }: CategoryManagerProps) {
                                     </>
                                 ) : (
                                     <>
-                                        <span className="flex-1 font-medium">{category.name}</span>
-                                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEdit(category)}>
-                                            <Edit2 className="h-3 w-3" />
+                                        <span className="flex-1">{item.name}</span>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => {
+                                            setEditingId(item.id)
+                                            setEditingName(item.name)
+                                        }}>
+                                            <Pencil className="h-4 w-4" />
                                         </Button>
-                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDelete(category.id)}>
-                                            <Trash className="h-3 w-3" />
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDelete(item.id)}>
+                                            <Trash className="h-4 w-4" />
                                         </Button>
                                     </>
                                 )}
                             </div>
                         ))}
-                        {categories.length === 0 && (
-                            <div className="text-center text-sm text-muted-foreground py-4">
-                                No categories yet.
-                            </div>
-                        )}
                     </div>
                 </div>
             </DialogContent>

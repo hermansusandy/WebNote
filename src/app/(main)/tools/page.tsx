@@ -14,17 +14,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-
+import { CategoryManager } from "@/components/category-manager"
 import { toast } from "sonner"
 
 export default function ToolsPage() {
     const [items, setItems] = useState<any[]>([])
-    const [categories, setCategories] = useState<string[]>([]) // Simple string categories for now or reuse learning_categories? User asked for "Category". Let's use a simple text field or distinct values for now to simplify, or maybe reuse learning_categories?
-    // Actually, "Category" field usually implies a tag or a select.
-    // Let's use a simple text input for category for flexibility, or a select if we want to enforce.
-    // Given the previous pattern, let's use a simple text field for "Category" to keep it simple as requested "field only Name, Url, Category, Action".
-    // Or better, let's make it a text input that suggests existing categories.
-    // For MVP, let's just use a text input for Category.
+    const [categories, setCategories] = useState<any[]>([])
+    const [subCategories, setSubCategories] = useState<any[]>([])
 
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
@@ -33,9 +29,12 @@ export default function ToolsPage() {
     // Selection & Filters
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
     const [categoryFilter, setCategoryFilter] = useState<string>("All")
+    const [subCategoryFilter, setSubCategoryFilter] = useState<string>("All")
 
     useEffect(() => {
         fetchItems()
+        fetchCategories()
+        fetchSubCategories()
     }, [])
 
     const fetchItems = async () => {
@@ -48,13 +47,22 @@ export default function ToolsPage() {
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
 
-        if (data) {
-            setItems(data)
-            // Extract unique categories
-            const uniqueCategories = Array.from(new Set(data.map(item => item.category).filter(Boolean))) as string[]
-            setCategories(uniqueCategories)
-        }
+        if (data) setItems(data)
         setLoading(false)
+    }
+
+    const fetchCategories = async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { data } = await supabase.from('web_url_categories').select('*').eq('user_id', user.id).order('name')
+        if (data) setCategories(data)
+    }
+
+    const fetchSubCategories = async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { data } = await supabase.from('web_url_sub_categories').select('*').eq('user_id', user.id).order('name')
+        if (data) setSubCategories(data)
     }
 
     const handleCreate = async () => {
@@ -65,7 +73,8 @@ export default function ToolsPage() {
             user_id: user.id,
             name: 'New Web URL',
             url: 'https://example.com',
-            category: 'General'
+            category: categories[0]?.name || 'General',
+            sub_category: subCategories[0]?.name || null
         }).select().single()
 
         if (error) {
@@ -125,25 +134,38 @@ export default function ToolsPage() {
     const filteredItems = items.filter(item => {
         return item.name.toLowerCase().includes(search.toLowerCase()) ||
             (item.category || '').toLowerCase().includes(search.toLowerCase()) ||
+            (item.sub_category || '').toLowerCase().includes(search.toLowerCase()) ||
             item.url.toLowerCase().includes(search.toLowerCase())
     }).filter(item => {
         const matchesCategory = categoryFilter === "All" || item.category === categoryFilter
-        return matchesCategory
+        const matchesSubCategory = subCategoryFilter === "All" || item.sub_category === subCategoryFilter
+        return matchesCategory && matchesSubCategory
     })
+
+    const getYoutubeId = (url: string) => {
+        if (!url) return null
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/
+        const match = url.match(regExp)
+        return (match && match[2].length === 11) ? match[2] : null
+    }
 
     return (
         <div className="space-y-8 pb-20 p-8">
             <div className="flex items-center justify-between">
                 <h1 className="text-3xl font-bold tracking-tight">Tools/URL</h1>
-                <Button onClick={handleCreate}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    New URL
-                </Button>
+                <div className="flex gap-2">
+                    <CategoryManager tableName="web_url_categories" title="Categories" onUpdate={fetchCategories} />
+                    <CategoryManager tableName="web_url_sub_categories" title="Sub-Categories" onUpdate={fetchSubCategories} />
+                    <Button onClick={handleCreate}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        New URL
+                    </Button>
+                </div>
             </div>
 
             <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2">
-                    <div className="relative flex-1 max-w-sm">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <div className="relative flex-1 min-w-[200px] max-w-sm">
                         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Search URLs..."
@@ -163,13 +185,31 @@ export default function ToolsPage() {
                         <SelectContent>
                             <SelectItem value="All">All Categories</SelectItem>
                             {categories.map(cat => (
-                                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
 
-                    {(categoryFilter !== "All") && (
-                        <Button variant="ghost" size="icon" onClick={() => setCategoryFilter("All")}>
+                    <Select value={subCategoryFilter} onValueChange={setSubCategoryFilter}>
+                        <SelectTrigger className="w-[180px]">
+                            <div className="flex items-center gap-2">
+                                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                                <SelectValue placeholder="Sub-Category" />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All Sub-Categories</SelectItem>
+                            {subCategories.map(cat => (
+                                <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {(categoryFilter !== "All" || subCategoryFilter !== "All") && (
+                        <Button variant="ghost" size="icon" onClick={() => {
+                            setCategoryFilter("All")
+                            setSubCategoryFilter("All")
+                        }}>
                             <X className="h-4 w-4" />
                         </Button>
                     )}
@@ -190,9 +230,11 @@ export default function ToolsPage() {
                         checked={filteredItems.length > 0 && selectedItems.size === filteredItems.length}
                         onCheckedChange={toggleSelectAll}
                     />
-                    <div className="w-[25%]">Name</div>
+                    <div className="w-[120px]">Thumbnail</div>
+                    <div className="w-[20%]">Name</div>
                     <div className="flex-1">URL</div>
                     <div className="w-[150px]">Category</div>
+                    <div className="w-[150px]">Sub-Category</div>
                     <div className="w-20">Actions</div>
                 </div>
 
@@ -203,6 +245,10 @@ export default function ToolsPage() {
                 ) : (
                     filteredItems.map(item => {
                         const isEditing = editingId === item.id
+                        const youtubeId = getYoutubeId(item.url)
+                        const thumbnailUrl = youtubeId
+                            ? `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`
+                            : `https://www.google.com/s2/favicons?domain=${item.url}&sz=128`
 
                         return (
                             <div key={item.id} className={`flex items-center gap-4 p-4 border rounded-lg bg-card transition-colors group ${selectedItems.has(item.id) ? 'bg-accent/50 border-primary/50' : 'hover:bg-accent/50'}`}>
@@ -210,7 +256,29 @@ export default function ToolsPage() {
                                     checked={selectedItems.has(item.id)}
                                     onCheckedChange={() => toggleSelection(item.id)}
                                 />
-                                <div className="w-[25%]">
+
+                                <div className="relative group/thumbnail w-[120px] h-[68px] shrink-0">
+                                    <div className="w-full h-full bg-muted rounded-md overflow-hidden flex items-center justify-center cursor-pointer border">
+                                        {item.url ? (
+                                            <img src={thumbnailUrl} alt={item.name} className={`w-full h-full ${youtubeId ? 'object-cover' : 'object-contain p-4'}`} />
+                                        ) : (
+                                            <div className="text-muted-foreground/20">
+                                                <ExternalLink className="h-8 w-8" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    {item.url && (
+                                        <div className="absolute left-0 bottom-full mb-2 hidden group-hover/thumbnail:block z-50 w-[320px] aspect-video rounded-lg overflow-hidden shadow-xl border bg-background animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
+                                            <img
+                                                src={youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : thumbnailUrl}
+                                                alt={item.name}
+                                                className={`w-full h-full ${youtubeId ? 'object-cover' : 'object-contain p-8 bg-white'}`}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="w-[20%]">
                                     {isEditing ? (
                                         <Input
                                             value={item.name}
@@ -218,11 +286,11 @@ export default function ToolsPage() {
                                             className="font-semibold"
                                         />
                                     ) : (
-                                        <div className="font-semibold truncate">{item.name}</div>
+                                        <div className="font-semibold truncate" title={item.name}>{item.name}</div>
                                     )}
                                 </div>
 
-                                <div className="flex-1 flex items-center gap-2">
+                                <div className="flex-1 flex items-center gap-2 min-w-0">
                                     {isEditing ? (
                                         <Input
                                             value={item.url}
@@ -241,15 +309,38 @@ export default function ToolsPage() {
 
                                 <div className="w-[150px]">
                                     {isEditing ? (
-                                        <Input
-                                            value={item.category || ''}
-                                            onChange={(e) => handleUpdate(item.id, { category: e.target.value })}
-                                            placeholder="Category"
-                                            className="text-sm"
-                                        />
+                                        <Select value={item.category || ''} onValueChange={(val) => handleUpdate(item.id, { category: val })}>
+                                            <SelectTrigger className="h-8">
+                                                <SelectValue placeholder="Category" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {categories.map(cat => (
+                                                    <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     ) : (
                                         <Badge variant="secondary" className="font-normal">
                                             {item.category || "General"}
+                                        </Badge>
+                                    )}
+                                </div>
+
+                                <div className="w-[150px]">
+                                    {isEditing ? (
+                                        <Select value={item.sub_category || ''} onValueChange={(val) => handleUpdate(item.id, { sub_category: val })}>
+                                            <SelectTrigger className="h-8">
+                                                <SelectValue placeholder="Sub-Category" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {subCategories.map(cat => (
+                                                    <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    ) : (
+                                        <Badge variant="outline" className="font-normal text-muted-foreground">
+                                            {item.sub_category || "-"}
                                         </Badge>
                                     )}
                                 </div>
