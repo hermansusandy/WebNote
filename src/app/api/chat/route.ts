@@ -1,4 +1,3 @@
-// Force rebuild
 import { openai } from '@ai-sdk/openai'
 import { streamText, tool } from 'ai'
 import { z } from 'zod'
@@ -113,14 +112,9 @@ export async function POST(req: Request) {
                     }
                     if (!userId) return 'Error: Could not determine user.'
 
-                    // Basic date parsing if needed, but assuming model sends ISO or valid string
-                    // If model sends "tomorrow", we might need to parse it. 
-                    // But usually the model can generate ISO strings if asked.
-                    // Let's rely on the model to provide a valid date string or ISO.
-
                     const { data, error } = await supabase
                         .from('reminders')
-                        .insert([{ user_id: userId, title, due_at: due_at }]) // Assuming due_at is compatible or model provides ISO
+                        .insert([{ user_id: userId, title, due_at: due_at }])
                         .select()
                         .single()
 
