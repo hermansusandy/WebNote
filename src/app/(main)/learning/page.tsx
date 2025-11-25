@@ -10,6 +10,7 @@ import { Plus, Search, Trash, CheckCircle2, Circle, Filter, X, Pencil, Check } f
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { CategoryManager } from "@/components/category-manager"
+import { LongText } from "@/components/long-text"
 import {
     Select,
     SelectContent,
@@ -312,7 +313,7 @@ export default function LearningPage() {
                                     )}
                                 </div>
 
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                     {isEditing ? (
                                         <Textarea
                                             value={item.notes || ''}
@@ -321,7 +322,7 @@ export default function LearningPage() {
                                             className="text-sm min-h-[80px]"
                                         />
                                     ) : (
-                                        <div className="text-sm text-muted-foreground truncate">{item.notes || "-"}</div>
+                                        <LongText text={item.notes} />
                                     )}
                                 </div>
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Plus, Search, Trash, Filter, X, Pencil, Check, ExternalLink } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -15,6 +16,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { CategoryManager } from "@/components/category-manager"
+import { LongText } from "@/components/long-text"
 import { toast } from "sonner"
 
 export default function ToolsPage() {
@@ -74,12 +76,13 @@ export default function ToolsPage() {
             name: 'New Web URL',
             url: 'https://example.com',
             category: categories[0]?.name || 'General',
-            sub_category: subCategories[0]?.name || null
+            sub_category: subCategories[0]?.name || null,
+            remarks: ''
         }).select().single()
 
         if (error) {
             console.error("Error creating URL:", error)
-            toast.error(`Failed to create URL: ${error.message}`)
+            toast.error(`Failed to create URL: ${error.message} `)
             return
         }
 
@@ -135,6 +138,7 @@ export default function ToolsPage() {
         return item.name.toLowerCase().includes(search.toLowerCase()) ||
             (item.category || '').toLowerCase().includes(search.toLowerCase()) ||
             (item.sub_category || '').toLowerCase().includes(search.toLowerCase()) ||
+            (item.remarks || '').toLowerCase().includes(search.toLowerCase()) ||
             item.url.toLowerCase().includes(search.toLowerCase())
     }).filter(item => {
         const matchesCategory = categoryFilter === "All" || item.category === categoryFilter
@@ -231,10 +235,11 @@ export default function ToolsPage() {
                         onCheckedChange={toggleSelectAll}
                     />
                     <div className="w-[120px]">Thumbnail</div>
-                    <div className="w-[20%]">Name</div>
-                    <div className="flex-1">URL</div>
-                    <div className="w-[150px]">Category</div>
-                    <div className="w-[150px]">Sub-Category</div>
+                    <div className="w-[15%]">Name</div>
+                    <div className="w-[20%]">URL</div>
+                    <div className="flex-1">Remarks</div>
+                    <div className="w-[120px]">Category</div>
+                    <div className="w-[120px]">Sub-Category</div>
                     <div className="w-20">Actions</div>
                 </div>
 
@@ -278,7 +283,7 @@ export default function ToolsPage() {
                                     )}
                                 </div>
 
-                                <div className="w-[20%]">
+                                <div className="w-[15%]">
                                     {isEditing ? (
                                         <Input
                                             value={item.name}
@@ -290,7 +295,7 @@ export default function ToolsPage() {
                                     )}
                                 </div>
 
-                                <div className="flex-1 flex items-center gap-2 min-w-0">
+                                <div className="w-[20%] flex items-center gap-2 min-w-0">
                                     {isEditing ? (
                                         <Input
                                             value={item.url}
@@ -307,7 +312,20 @@ export default function ToolsPage() {
                                     )}
                                 </div>
 
-                                <div className="w-[150px]">
+                                <div className="flex-1 min-w-0">
+                                    {isEditing ? (
+                                        <Textarea
+                                            value={item.remarks || ''}
+                                            onChange={(e) => handleUpdate(item.id, { remarks: e.target.value })}
+                                            placeholder="Remarks..."
+                                            className="text-sm min-h-[60px]"
+                                        />
+                                    ) : (
+                                        <LongText text={item.remarks} />
+                                    )}
+                                </div>
+
+                                <div className="w-[120px]">
                                     {isEditing ? (
                                         <Select value={item.category || ''} onValueChange={(val) => handleUpdate(item.id, { category: val })}>
                                             <SelectTrigger className="h-8">
@@ -326,7 +344,7 @@ export default function ToolsPage() {
                                     )}
                                 </div>
 
-                                <div className="w-[150px]">
+                                <div className="w-[120px]">
                                     {isEditing ? (
                                         <Select value={item.sub_category || ''} onValueChange={(val) => handleUpdate(item.id, { sub_category: val })}>
                                             <SelectTrigger className="h-8">
@@ -363,7 +381,7 @@ export default function ToolsPage() {
                         )
                     })
                 )}
-            </div>
-        </div>
+            </div >
+        </div >
     )
 }
