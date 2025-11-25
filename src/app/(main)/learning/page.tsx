@@ -98,7 +98,7 @@ export default function LearningPage() {
 
     const handleUpdate = async (id: string, updates: any) => {
         // Optimistic update
-        setItems(items.map(item => {
+        setItems(prevItems => prevItems.map(item => {
             if (item.id === id) {
                 // If updating category_id, we need to find the category object for optimistic UI
                 if (updates.category_id) {
@@ -187,7 +187,7 @@ export default function LearningPage() {
             <div className="flex items-center justify-between">
                 <h1 className="text-3xl font-bold tracking-tight">Learning Planner</h1>
                 <div className="flex gap-2">
-                    <CategoryManager tableName="learning_categories" onUpdate={fetchCategories} />
+                    <CategoryManager tableName="learning_categories" title="Categories" onUpdate={fetchCategories} />
                     <Button onClick={handleCreate}>
                         <Plus className="mr-2 h-4 w-4" />
                         New Topic
@@ -273,7 +273,7 @@ export default function LearningPage() {
                 )}
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-2">
                 <div className="flex items-center gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
                     <Checkbox
                         checked={filteredItems.length > 0 && selectedItems.size === filteredItems.length}
@@ -296,7 +296,7 @@ export default function LearningPage() {
                         const isEditing = editingId === item.id
 
                         return (
-                            <div key={item.id} className={`flex items-center gap-4 p-4 border rounded-lg bg-card transition-colors group ${selectedItems.has(item.id) ? 'bg-accent/50 border-primary/50' : 'hover:bg-accent/50'}`}>
+                            <div key={item.id} className={`flex items-center gap-4 p-2 border rounded-lg bg-card transition-colors group ${selectedItems.has(item.id) ? 'bg-accent/50 border-primary/50' : 'hover:bg-accent/50'}`}>
                                 <Checkbox
                                     checked={selectedItems.has(item.id)}
                                     onCheckedChange={() => toggleSelection(item.id)}

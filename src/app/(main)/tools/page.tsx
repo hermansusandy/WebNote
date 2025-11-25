@@ -95,7 +95,7 @@ export default function ToolsPage() {
 
     const handleUpdate = async (id: string, updates: any) => {
         // Optimistic update
-        setItems(items.map(item => {
+        setItems(prevItems => prevItems.map(item => {
             if (item.id === id) {
                 return { ...item, ...updates }
             }
@@ -228,13 +228,13 @@ export default function ToolsPage() {
                 )}
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-2">
                 <div className="flex items-center gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
                     <Checkbox
                         checked={filteredItems.length > 0 && selectedItems.size === filteredItems.length}
                         onCheckedChange={toggleSelectAll}
                     />
-                    <div className="w-[120px]">Thumbnail</div>
+
                     <div className="w-[15%]">Name</div>
                     <div className="w-[20%]">URL</div>
                     <div className="flex-1">Remarks</div>
@@ -256,34 +256,15 @@ export default function ToolsPage() {
                             : `https://www.google.com/s2/favicons?domain=${item.url}&sz=128`
 
                         return (
-                            <div key={item.id} className={`flex items-center gap-4 p-4 border rounded-lg bg-card transition-colors group ${selectedItems.has(item.id) ? 'bg-accent/50 border-primary/50' : 'hover:bg-accent/50'}`}>
+                            <div key={item.id} className={`flex items-center gap-4 p-2 border rounded-lg bg-card transition-colors group ${selectedItems.has(item.id) ? 'bg-accent/50 border-primary/50' : 'hover:bg-accent/50'}`}>
                                 <Checkbox
                                     checked={selectedItems.has(item.id)}
                                     onCheckedChange={() => toggleSelection(item.id)}
                                 />
 
-                                <div className="relative group/thumbnail w-[120px] h-[68px] shrink-0">
-                                    <div className="w-full h-full bg-muted rounded-md overflow-hidden flex items-center justify-center cursor-pointer border">
-                                        {item.url ? (
-                                            <img src={thumbnailUrl} alt={item.name} className={`w-full h-full ${youtubeId ? 'object-cover' : 'object-contain p-4'}`} />
-                                        ) : (
-                                            <div className="text-muted-foreground/20">
-                                                <ExternalLink className="h-8 w-8" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    {item.url && (
-                                        <div className="absolute left-0 bottom-full mb-2 hidden group-hover/thumbnail:block z-50 w-[320px] aspect-video rounded-lg overflow-hidden shadow-xl border bg-background animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
-                                            <img
-                                                src={youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : thumbnailUrl}
-                                                alt={item.name}
-                                                className={`w-full h-full ${youtubeId ? 'object-cover' : 'object-contain p-8 bg-white'}`}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
 
-                                <div className="w-[15%]">
+
+                                <div className="w-[15%] relative group/name">
                                     {isEditing ? (
                                         <Input
                                             value={item.name}
@@ -291,7 +272,18 @@ export default function ToolsPage() {
                                             className="font-semibold"
                                         />
                                     ) : (
-                                        <div className="font-semibold truncate" title={item.name}>{item.name}</div>
+                                        <>
+                                            <div className="font-semibold truncate cursor-help" title={item.name}>{item.name}</div>
+                                            {item.url && (
+                                                <div className="absolute left-0 top-full mt-2 hidden group-hover/name:block z-50 w-[320px] aspect-video rounded-lg overflow-hidden shadow-xl border bg-background animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
+                                                    <img
+                                                        src={youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : thumbnailUrl}
+                                                        alt={item.name}
+                                                        className={`w-full h-full ${youtubeId ? 'object-cover' : 'object-contain p-8 bg-white'}`}
+                                                    />
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
 

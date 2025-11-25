@@ -108,7 +108,7 @@ export default function YoutubePage() {
 
     const handleUpdate = async (id: string, updates: any) => {
         // Optimistic update
-        setItems(items.map(item => {
+        setItems(prevItems => prevItems.map(item => {
             if (item.id === id) {
                 if (updates.category_id) {
                     const cat = categories.find(c => c.id === updates.category_id)
@@ -198,7 +198,7 @@ export default function YoutubePage() {
             <div className="flex items-center justify-between">
                 <h1 className="text-3xl font-bold tracking-tight">Youtube</h1>
                 <div className="flex gap-2">
-                    <CategoryManager tableName="youtube_categories" onUpdate={fetchCategories} />
+                    <CategoryManager tableName="youtube_categories" title="Categories" onUpdate={fetchCategories} />
                     <Button onClick={handleCreate}>
                         <Plus className="mr-2 h-4 w-4" />
                         Add Video
