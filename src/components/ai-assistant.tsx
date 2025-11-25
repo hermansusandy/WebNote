@@ -13,6 +13,7 @@ export function AIAssistant() {
     const [isOpen, setIsOpen] = useState(false)
     const [inputValue, setInputValue] = useState('')
     const chatHelpers = useChat({
+        maxSteps: 5,
         onError: (err) => {
             console.error("AI Chat Error:", err)
             toast.error("AI Error: " + err.message)
