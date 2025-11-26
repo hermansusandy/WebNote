@@ -70,7 +70,7 @@ export const EditorBlockMenu = ({ editor }: EditorBlockMenuProps) => {
 
     return (
         <div
-            className="absolute left-[-3rem] flex items-center gap-1 transition-all duration-200 ease-in-out"
+            className="absolute left-0 flex items-center gap-1 transition-all duration-200 ease-in-out"
             style={{ top: `${menuPosition}px` }}
         >
             <Button

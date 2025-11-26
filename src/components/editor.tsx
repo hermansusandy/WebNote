@@ -144,7 +144,7 @@ export function Editor({ content, onChange, editable = true }: EditorProps) {
                     </div>
                 </BubbleMenu>
             )}
-            <div className="relative pl-12">
+            <div className="relative pl-8 md:pl-12">
                 {editor && <EditorBlockMenu editor={editor} />}
                 <EditorContent editor={editor} />
             </div>
