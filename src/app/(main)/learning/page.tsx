@@ -332,175 +332,65 @@ export default function LearningPage() {
             </div>
 
             <div className="space-y-2">
-                <div className="space-y-2">
-                    {/* Desktop Header */}
-                    <div className="hidden md:flex items-center gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
-                        <Checkbox
-                            checked={sortedItems.length > 0 && selectedItems.size === sortedItems.length}
-                            onCheckedChange={toggleSelectAll}
-                        />
-                        <div className="w-10 font-medium cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('created_at')}>
-                            No. {renderSortIcon('created_at')}
-                        </div>
-                        <div className="w-[30%] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('title')}>
-                            Topic {renderSortIcon('title')}
-                        </div>
-                        <div className="flex-1 cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('notes')}>
-                            Notes {renderSortIcon('notes')}
-                        </div>
-                        <div className="w-[140px] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('category')}>
-                            Category {renderSortIcon('category')}
-                        </div>
-                        <div className="w-[120px] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('status')}>
-                            Status {renderSortIcon('status')}
-                        </div>
-                        <div className="w-[120px] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('priority')}>
-                            Priority {renderSortIcon('priority')}
-                        </div>
-                        <div className="w-20">Actions</div>
+
+                {/* Desktop Header */}
+                <div className="hidden md:flex items-center gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
+                    <Checkbox
+                        checked={sortedItems.length > 0 && selectedItems.size === sortedItems.length}
+                        onCheckedChange={toggleSelectAll}
+                    />
+                    <div className="w-10 font-medium cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('created_at')}>
+                        No. {renderSortIcon('created_at')}
                     </div>
-
-                    {/* Mobile Selection Header */}
-                    <div className="md:hidden flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
-                        <Checkbox
-                            checked={sortedItems.length > 0 && selectedItems.size === sortedItems.length}
-                            onCheckedChange={toggleSelectAll}
-                        />
-                        <span>Select All</span>
+                    <div className="w-[30%] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('title')}>
+                        Topic {renderSortIcon('title')}
                     </div>
+                    <div className="flex-1 cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('notes')}>
+                        Notes {renderSortIcon('notes')}
+                    </div>
+                    <div className="w-[140px] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('category')}>
+                        Category {renderSortIcon('category')}
+                    </div>
+                    <div className="w-[120px] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('status')}>
+                        Status {renderSortIcon('status')}
+                    </div>
+                    <div className="w-[120px] cursor-pointer hover:text-foreground flex items-center" onClick={() => handleSort('priority')}>
+                        Priority {renderSortIcon('priority')}
+                    </div>
+                    <div className="w-20">Actions</div>
+                </div>
 
-                    {sortedItems.length === 0 ? (
-                        <div className="p-8 text-center text-sm text-muted-foreground border rounded-md border-dashed">
-                            No learning topics found.
-                        </div>
-                    ) : (
-                        sortedItems.map((item) => {
-                            const isEditing = editingId === item.id
+                {/* Mobile Selection Header */}
+                <div className="md:hidden flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
+                    <Checkbox
+                        checked={sortedItems.length > 0 && selectedItems.size === sortedItems.length}
+                        onCheckedChange={toggleSelectAll}
+                    />
+                    <span>Select All</span>
+                </div>
 
-                            return (
-                                <div key={item.id} className={`flex flex-col md:flex-row md:items-center gap-4 p-4 md:p-2 border rounded-lg bg-card transition-colors group ${selectedItems.has(item.id) ? 'bg-accent/50 border-primary/50' : 'hover:bg-accent/50'}`}>
-                                    <div className="flex items-center justify-between md:w-auto w-full">
-                                        <div className="flex items-center gap-3">
-                                            <Checkbox
-                                                checked={selectedItems.has(item.id)}
-                                                onCheckedChange={() => toggleSelection(item.id)}
-                                            />
-                                            <div className="w-10 text-muted-foreground text-xs md:block hidden">{item.displayIndex}</div>
-                                            {/* Mobile Index */}
-                                            <div className="text-muted-foreground text-xs md:hidden">#{item.displayIndex}</div>
-                                        </div>
-                                        {/* Mobile Actions */}
-                                        <div className="flex md:hidden items-center gap-1">
-                                            {isEditing ? (
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => setEditingId(null)}>
-                                                    <Check className="h-4 w-4" />
-                                                </Button>
-                                            ) : (
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setEditingId(item.id)}>
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
-                                            )}
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(item.id)}>
-                                                <Trash className="h-4 w-4" />
-                                            </Button>
-                                        </div>
+                {sortedItems.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-muted-foreground border rounded-md border-dashed">
+                        No learning topics found.
+                    </div>
+                ) : (
+                    sortedItems.map((item) => {
+                        const isEditing = editingId === item.id
+
+                        return (
+                            <div key={item.id} className={`flex flex-col md:flex-row md:items-center gap-4 p-4 md:p-2 border rounded-lg bg-card transition-colors group ${selectedItems.has(item.id) ? 'bg-accent/50 border-primary/50' : 'hover:bg-accent/50'}`}>
+                                <div className="flex items-center justify-between md:w-auto w-full">
+                                    <div className="flex items-center gap-3">
+                                        <Checkbox
+                                            checked={selectedItems.has(item.id)}
+                                            onCheckedChange={() => toggleSelection(item.id)}
+                                        />
+                                        <div className="w-10 text-muted-foreground text-xs md:block hidden">{item.displayIndex}</div>
+                                        {/* Mobile Index */}
+                                        <div className="text-muted-foreground text-xs md:hidden">#{item.displayIndex}</div>
                                     </div>
-
-                                    <div className="w-full md:w-[30%]">
-                                        {isEditing ? (
-                                            <Input
-                                                value={item.title}
-                                                onChange={(e) => handleUpdate(item.id, { title: e.target.value })}
-                                                className="font-semibold text-lg"
-                                            />
-                                        ) : (
-                                            <div className="font-semibold text-lg truncate">{item.title}</div>
-                                        )}
-                                    </div>
-
-                                    <div className="flex-1 min-w-0 w-full">
-                                        {isEditing ? (
-                                            <Textarea
-                                                value={item.notes || ''}
-                                                onChange={(e) => handleUpdate(item.id, { notes: e.target.value })}
-                                                placeholder="Add notes..."
-                                                className="text-sm min-h-[80px]"
-                                            />
-                                        ) : (
-                                            <LongText text={item.notes} />
-                                        )}
-                                    </div>
-
-                                    <div className="flex flex-wrap items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
-                                        <div className="w-auto md:w-[140px] flex-1 md:flex-none min-w-[100px]">
-                                            {isEditing ? (
-                                                <Select
-                                                    value={item.category_id || "none"}
-                                                    onValueChange={(val) => handleUpdate(item.id, { category_id: val === "none" ? null : val })}
-                                                >
-                                                    <SelectTrigger className="h-8 text-xs w-full">
-                                                        <SelectValue placeholder="No Category" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="none">No Category</SelectItem>
-                                                        {categories.map(cat => (
-                                                            <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            ) : (
-                                                <Badge variant="secondary" className="font-normal w-full justify-center md:w-auto md:justify-start">
-                                                    {item.category?.name || "No Category"}
-                                                </Badge>
-                                            )}
-                                        </div>
-
-                                        <div className="w-auto md:w-[120px] flex-1 md:flex-none min-w-[90px]">
-                                            {isEditing ? (
-                                                <Select
-                                                    value={item.status}
-                                                    onValueChange={(val) => handleUpdate(item.id, { status: val })}
-                                                >
-                                                    <SelectTrigger className="h-8 text-xs w-full">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="Planned">Planned</SelectItem>
-                                                        <SelectItem value="In Progress">In Progress</SelectItem>
-                                                        <SelectItem value="Completed">Completed</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            ) : (
-                                                <Badge variant="outline" className={cn(getStatusColor(item.status), "w-full justify-center md:w-auto md:justify-start")}>
-                                                    {item.status}
-                                                </Badge>
-                                            )}
-                                        </div>
-
-                                        <div className="w-auto md:w-[120px] flex-1 md:flex-none min-w-[80px]">
-                                            {isEditing ? (
-                                                <Select
-                                                    value={item.priority}
-                                                    onValueChange={(val) => handleUpdate(item.id, { priority: val })}
-                                                >
-                                                    <SelectTrigger className="h-8 text-xs w-full">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="Low">Low</SelectItem>
-                                                        <SelectItem value="Medium">Medium</SelectItem>
-                                                        <SelectItem value="High">High</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            ) : (
-                                                <Badge variant="outline" className={cn(getPriorityColor(item.priority), "w-full justify-center md:w-auto md:justify-start")}>
-                                                    {item.priority}
-                                                </Badge>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="w-20 hidden md:flex items-center gap-1">
+                                    {/* Mobile Actions */}
+                                    <div className="flex md:hidden items-center gap-1">
                                         {isEditing ? (
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => setEditingId(null)}>
                                                 <Check className="h-4 w-4" />
@@ -515,10 +405,120 @@ export default function LearningPage() {
                                         </Button>
                                     </div>
                                 </div>
-                            )
-                        })
-                    )}
-                </div>
+
+                                <div className="w-full md:w-[30%]">
+                                    {isEditing ? (
+                                        <Input
+                                            value={item.title}
+                                            onChange={(e) => handleUpdate(item.id, { title: e.target.value })}
+                                            className="font-semibold text-lg"
+                                        />
+                                    ) : (
+                                        <div className="font-semibold text-lg truncate">{item.title}</div>
+                                    )}
+                                </div>
+
+                                <div className="flex-1 min-w-0 w-full">
+                                    {isEditing ? (
+                                        <Textarea
+                                            value={item.notes || ''}
+                                            onChange={(e) => handleUpdate(item.id, { notes: e.target.value })}
+                                            placeholder="Add notes..."
+                                            className="text-sm min-h-[80px]"
+                                        />
+                                    ) : (
+                                        <LongText text={item.notes} />
+                                    )}
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
+                                    <div className="w-auto md:w-[140px] flex-1 md:flex-none min-w-[100px]">
+                                        {isEditing ? (
+                                            <Select
+                                                value={item.category_id || "none"}
+                                                onValueChange={(val) => handleUpdate(item.id, { category_id: val === "none" ? null : val })}
+                                            >
+                                                <SelectTrigger className="h-8 text-xs w-full">
+                                                    <SelectValue placeholder="No Category" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">No Category</SelectItem>
+                                                    {categories.map(cat => (
+                                                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        ) : (
+                                            <Badge variant="secondary" className="font-normal w-full justify-center md:w-auto md:justify-start">
+                                                {item.category?.name || "No Category"}
+                                            </Badge>
+                                        )}
+                                    </div>
+
+                                    <div className="w-auto md:w-[120px] flex-1 md:flex-none min-w-[90px]">
+                                        {isEditing ? (
+                                            <Select
+                                                value={item.status}
+                                                onValueChange={(val) => handleUpdate(item.id, { status: val })}
+                                            >
+                                                <SelectTrigger className="h-8 text-xs w-full">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Planned">Planned</SelectItem>
+                                                    <SelectItem value="In Progress">In Progress</SelectItem>
+                                                    <SelectItem value="Completed">Completed</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        ) : (
+                                            <Badge variant="outline" className={cn(getStatusColor(item.status), "w-full justify-center md:w-auto md:justify-start")}>
+                                                {item.status}
+                                            </Badge>
+                                        )}
+                                    </div>
+
+                                    <div className="w-auto md:w-[120px] flex-1 md:flex-none min-w-[80px]">
+                                        {isEditing ? (
+                                            <Select
+                                                value={item.priority}
+                                                onValueChange={(val) => handleUpdate(item.id, { priority: val })}
+                                            >
+                                                <SelectTrigger className="h-8 text-xs w-full">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Low">Low</SelectItem>
+                                                    <SelectItem value="Medium">Medium</SelectItem>
+                                                    <SelectItem value="High">High</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        ) : (
+                                            <Badge variant="outline" className={cn(getPriorityColor(item.priority), "w-full justify-center md:w-auto md:justify-start")}>
+                                                {item.priority}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="w-20 hidden md:flex items-center gap-1">
+                                    {isEditing ? (
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => setEditingId(null)}>
+                                            <Check className="h-4 w-4" />
+                                        </Button>
+                                    ) : (
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setEditingId(item.id)}>
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(item.id)}>
+                                        <Trash className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        )
+                    })
+                )}
             </div>
-            )
+        </div>
+    )
 }
