@@ -304,7 +304,8 @@ export default function YoutubePage() {
             </div>
 
             <div className="space-y-2">
-                <div className="flex items-center gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
+                {/* Table Header - Hidden on Mobile */}
+                <div className="hidden md:flex items-center gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
                     <Checkbox
                         checked={sortedItems.length > 0 && selectedItems.size === sortedItems.length}
                         onCheckedChange={toggleSelectAll}
@@ -328,6 +329,15 @@ export default function YoutubePage() {
                     <div className="w-20">Actions</div>
                 </div>
 
+                {/* Mobile Selection Header */}
+                <div className="md:hidden flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
+                    <Checkbox
+                        checked={sortedItems.length > 0 && selectedItems.size === sortedItems.length}
+                        onCheckedChange={toggleSelectAll}
+                    />
+                    <span>Select All</span>
+                </div>
+
                 {sortedItems.length === 0 ? (
                     <div className="p-8 text-center text-sm text-muted-foreground border rounded-md border-dashed">
                         No videos found.
@@ -339,42 +349,82 @@ export default function YoutubePage() {
                         const isEditing = editingId === item.id
 
                         return (
-                            <div key={item.id} className={`flex items-center gap-4 p-4 border rounded-lg bg-card transition-colors group ${selectedItems.has(item.id) ? 'bg-accent/50 border-primary/50' : 'hover:bg-accent/50'}`}>
+                            <div key={item.id} className={`flex flex-col md:flex-row md:items-center gap-4 p-4 border rounded-lg bg-card transition-colors group ${selectedItems.has(item.id) ? 'bg-accent/50 border-primary/50' : 'hover:bg-accent/50'}`}>
+                                {/* Mobile: Header Row with Checkbox and Index */}
+                                <div className="flex items-center justify-between md:hidden">
+                                    <div className="flex items-center gap-3">
+                                        <Checkbox
+                                            checked={selectedItems.has(item.id)}
+                                            onCheckedChange={() => toggleSelection(item.id)}
+                                        />
+                                        <span className="text-sm font-medium text-muted-foreground">#{item.displayIndex}</span>
+                                    </div>
+                                    {/* Mobile Actions */}
+                                    <div className="flex items-center gap-1">
+                                        {isEditing ? (
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => setEditingId(null)}>
+                                                <Check className="h-4 w-4" />
+                                            </Button>
+                                        ) : (
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setEditingId(item.id)}>
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(item.id)}>
+                                            <Trash className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                {/* Desktop Checkbox & Index */}
                                 <Checkbox
+                                    className="hidden md:block"
                                     checked={selectedItems.has(item.id)}
                                     onCheckedChange={() => toggleSelection(item.id)}
                                 />
-                                <div className="w-10 text-muted-foreground text-xs">{item.displayIndex}</div>
-                                <div className="relative group/thumbnail">
-                                    <div className="w-[120px] h-[68px] bg-muted rounded-md overflow-hidden shrink-0 flex items-center justify-center cursor-pointer">
-                                        {thumbnailUrl ? (
-                                            <img src={thumbnailUrl} alt={item.name} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="text-muted-foreground/20">
-                                                <ExternalLink className="h-8 w-8" />
+                                <div className="hidden md:block w-10 text-muted-foreground text-xs">{item.displayIndex}</div>
+
+                                {/* Content */}
+                                <div className="flex flex-col md:flex-row md:items-center gap-4 flex-1">
+                                    <div className="relative group/thumbnail self-start md:self-auto">
+                                        <div className="w-full md:w-[120px] h-[180px] md:h-[68px] aspect-video md:aspect-auto bg-muted rounded-md overflow-hidden shrink-0 flex items-center justify-center cursor-pointer">
+                                            {thumbnailUrl ? (
+                                                <img src={thumbnailUrl} alt={item.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="text-muted-foreground/20">
+                                                    <ExternalLink className="h-8 w-8" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        {thumbnailUrl && (
+                                            <div className="absolute left-0 bottom-full mb-2 hidden group-hover/thumbnail:block z-50 w-[320px] aspect-video rounded-lg overflow-hidden shadow-xl border bg-background animate-in fade-in zoom-in-95 duration-200">
+                                                <img src={thumbnailUrl.replace('mqdefault', 'maxresdefault')} alt={item.name} className="w-full h-full object-cover" />
                                             </div>
                                         )}
                                     </div>
-                                    {thumbnailUrl && (
-                                        <div className="absolute left-0 bottom-full mb-2 hidden group-hover/thumbnail:block z-50 w-[320px] aspect-video rounded-lg overflow-hidden shadow-xl border bg-background animate-in fade-in zoom-in-95 duration-200">
-                                            <img src={thumbnailUrl.replace('mqdefault', 'maxresdefault')} alt={item.name} className="w-full h-full object-cover" />
+
+                                    <div className="flex-1 min-w-0 space-y-2 md:space-y-0">
+                                        {isEditing ? (
+                                            <Input
+                                                value={item.name}
+                                                onChange={(e) => handleUpdate(item.id, { name: e.target.value })}
+                                                className="font-semibold text-base"
+                                            />
+                                        ) : (
+                                            <div className="font-semibold text-base truncate">{item.name}</div>
+                                        )}
+
+                                        {/* Mobile: Category Badge */}
+                                        <div className="md:hidden">
+                                            <Badge variant="secondary" className="font-normal">
+                                                {item.category?.name || "No Category"}
+                                            </Badge>
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
 
-                                <div className="flex-1">
-                                    {isEditing ? (
-                                        <Input
-                                            value={item.name}
-                                            onChange={(e) => handleUpdate(item.id, { name: e.target.value })}
-                                            className="font-semibold text-base"
-                                        />
-                                    ) : (
-                                        <div className="font-semibold text-base truncate">{item.name}</div>
-                                    )}
-                                </div>
-
-                                <div className="w-[180px]">
+                                {/* Desktop Columns / Mobile Details */}
+                                <div className="w-full md:w-[180px] hidden md:block">
                                     {isEditing ? (
                                         <Select
                                             value={item.category_id || "none"}
@@ -397,7 +447,7 @@ export default function YoutubePage() {
                                     )}
                                 </div>
 
-                                <div className="w-[200px]">
+                                <div className="w-full md:w-[200px] space-y-1 md:space-y-0">
                                     {isEditing ? (
                                         <Input
                                             value={item.url || ''}
@@ -411,12 +461,12 @@ export default function YoutubePage() {
                                                 {item.url}
                                             </a>
                                         ) : (
-                                            <span className="text-xs text-muted-foreground">-</span>
+                                            <span className="text-xs text-muted-foreground block md:hidden">-</span>
                                         )
                                     )}
                                 </div>
 
-                                <div className="w-[200px]">
+                                <div className="w-full md:w-[200px]">
                                     {isEditing ? (
                                         <Input
                                             value={item.note || ''}
@@ -425,11 +475,14 @@ export default function YoutubePage() {
                                             className="h-8 text-xs"
                                         />
                                     ) : (
-                                        <div className="text-xs text-muted-foreground truncate">{item.note || "-"}</div>
+                                        <div className="text-xs text-muted-foreground truncate">{item.note || (
+                                            <span className="md:hidden italic">No notes</span>
+                                        )}</div>
                                     )}
                                 </div>
 
-                                <div className="w-20 flex items-center gap-1">
+                                {/* Desktop Actions */}
+                                <div className="w-20 hidden md:flex items-center gap-1">
                                     {isEditing ? (
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => setEditingId(null)}>
                                             <Check className="h-4 w-4" />
