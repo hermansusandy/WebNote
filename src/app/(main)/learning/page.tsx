@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -23,11 +23,29 @@ import {
 
 import { toast } from "sonner"
 
+interface Category {
+    id: string
+    name: string
+    color?: string
+}
+
+interface LearningItem {
+    id: string
+    title: string
+    notes?: string
+    status: string
+    priority: string
+    category_id?: string | null
+    category?: Category
+    created_at: string
+    displayIndex?: number
+}
+
 export default function LearningPage() {
     const searchParams = useSearchParams()
     const router = useRouter()
-    const [items, setItems] = useState<any[]>([])
-    const [categories, setCategories] = useState<any[]>([])
+    const [items, setItems] = useState<LearningItem[]>([])
+    const [categories, setCategories] = useState<Category[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
     const [editingId, setEditingId] = useState<string | null>(null)
@@ -39,12 +57,7 @@ export default function LearningPage() {
     const [categoryFilter, setCategoryFilter] = useState<string>("All")
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
 
-    useEffect(() => {
-        fetchItems()
-        fetchCategories()
-    }, [])
-
-    const fetchCategories = async () => {
+    const fetchCategories = useCallback(async () => {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
@@ -55,9 +68,9 @@ export default function LearningPage() {
             .order('name')
 
         if (data) setCategories(data)
-    }
+    }, [])
 
-    const fetchItems = async () => {
+    const fetchItems = useCallback(async () => {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
@@ -72,7 +85,12 @@ export default function LearningPage() {
 
         if (data) setItems(data)
         setLoading(false)
-    }
+    }, [])
+
+    useEffect(() => {
+        fetchItems()
+        fetchCategories()
+    }, [fetchItems, fetchCategories])
 
     const handleCreate = async () => {
         const { data: { user } } = await supabase.auth.getUser()
@@ -99,7 +117,7 @@ export default function LearningPage() {
         }
     }
 
-    const handleUpdate = async (id: string, updates: any) => {
+    const handleUpdate = async (id: string, updates: Partial<LearningItem>) => {
         // Optimistic update
         setItems(prevItems => prevItems.map(item => {
             if (item.id === id) {
@@ -186,16 +204,16 @@ export default function LearningPage() {
     const sortedItems = itemsWithIndex.sort((a, b) => {
         if (!sortConfig) {
             // Default sort: Newest first (descending index)
-            return b.displayIndex - a.displayIndex
+            return (b.displayIndex || 0) - (a.displayIndex || 0)
         }
         const { key, direction } = sortConfig
 
         if (key === 'created_at') {
-            return direction === 'asc' ? a.displayIndex - b.displayIndex : b.displayIndex - a.displayIndex
+            return direction === 'asc' ? (a.displayIndex || 0) - (b.displayIndex || 0) : (b.displayIndex || 0) - (a.displayIndex || 0)
         }
 
-        let aValue = a[key]
-        let bValue = b[key]
+        let aValue = (a as any)[key]
+        let bValue = (b as any)[key]
 
         if (key === 'category') {
             aValue = a.category?.name || ''

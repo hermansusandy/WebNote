@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,10 +19,26 @@ import { CategoryManager } from "@/components/category-manager"
 import { LongText } from "@/components/long-text"
 import { toast } from "sonner"
 
+interface Category {
+    id: string
+    name: string
+}
+
+interface ToolItem {
+    id: string
+    name: string
+    url: string
+    remarks?: string
+    category?: string
+    sub_category?: string
+    created_at: string
+    displayIndex?: number
+}
+
 export default function ToolsPage() {
-    const [items, setItems] = useState<any[]>([])
-    const [categories, setCategories] = useState<any[]>([])
-    const [subCategories, setSubCategories] = useState<any[]>([])
+    const [items, setItems] = useState<ToolItem[]>([])
+    const [categories, setCategories] = useState<Category[]>([])
+    const [subCategories, setSubCategories] = useState<Category[]>([])
 
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
@@ -34,13 +50,21 @@ export default function ToolsPage() {
     const [subCategoryFilter, setSubCategoryFilter] = useState<string>("All")
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
 
-    useEffect(() => {
-        fetchItems()
-        fetchCategories()
-        fetchSubCategories()
+    const fetchCategories = useCallback(async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { data } = await supabase.from('web_url_categories').select('*').eq('user_id', user.id).order('name')
+        if (data) setCategories(data)
     }, [])
 
-    const fetchItems = async () => {
+    const fetchSubCategories = useCallback(async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { data } = await supabase.from('web_url_sub_categories').select('*').eq('user_id', user.id).order('name')
+        if (data) setSubCategories(data)
+    }, [])
+
+    const fetchItems = useCallback(async () => {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
@@ -52,21 +76,13 @@ export default function ToolsPage() {
 
         if (data) setItems(data)
         setLoading(false)
-    }
+    }, [])
 
-    const fetchCategories = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-        const { data } = await supabase.from('web_url_categories').select('*').eq('user_id', user.id).order('name')
-        if (data) setCategories(data)
-    }
-
-    const fetchSubCategories = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-        const { data } = await supabase.from('web_url_sub_categories').select('*').eq('user_id', user.id).order('name')
-        if (data) setSubCategories(data)
-    }
+    useEffect(() => {
+        fetchItems()
+        fetchCategories()
+        fetchSubCategories()
+    }, [fetchItems, fetchCategories, fetchSubCategories])
 
     const handleCreate = async () => {
         const { data: { user } } = await supabase.auth.getUser()
@@ -94,7 +110,7 @@ export default function ToolsPage() {
         }
     }
 
-    const handleUpdate = async (id: string, updates: any) => {
+    const handleUpdate = async (id: string, updates: Partial<ToolItem>) => {
         // Optimistic update
         setItems(prevItems => prevItems.map(item => {
             if (item.id === id) {
@@ -172,8 +188,8 @@ export default function ToolsPage() {
             return direction === 'asc' ? a.displayIndex - b.displayIndex : b.displayIndex - a.displayIndex
         }
 
-        const aValue = a[key] || ''
-        const bValue = b[key] || ''
+        const aValue = (a as any)[key] || ''
+        const bValue = (b as any)[key] || ''
 
         if (aValue < bValue) return direction === 'asc' ? -1 : 1
         if (aValue > bValue) return direction === 'asc' ? 1 : -1
