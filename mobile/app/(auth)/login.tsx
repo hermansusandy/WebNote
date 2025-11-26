@@ -1,8 +1,10 @@
 import React, { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native'
+import { View, Text, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
 import { Stack, useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 import { Mail, Lock } from 'lucide-react-native'
+import { Input } from '../../components/ui/Input'
+import { Button } from '../../components/ui/Button'
 
 export default function Login() {
     const [email, setEmail] = useState('')
@@ -34,33 +36,35 @@ export default function Login() {
     }
 
     return (
-        <View className="flex-1 justify-center px-8 bg-white">
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            className="flex-1 bg-slate-50"
+        >
             <Stack.Screen options={{ headerShown: false }} />
 
-            <View className="mb-10">
-                <Text className="text-4xl font-bold text-slate-900 mb-2">Welcome Back</Text>
-                <Text className="text-slate-500 text-lg">Sign in to continue to WebNote</Text>
-            </View>
+            <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 32 }}>
+                <View className="mb-12">
+                    <View className="w-16 h-16 bg-slate-900 rounded-2xl mb-6 items-center justify-center shadow-lg shadow-slate-900/20">
+                        <Text className="text-white text-3xl font-bold">W</Text>
+                    </View>
+                    <Text className="text-4xl font-extrabold text-slate-900 mb-3 tracking-tight">Welcome Back</Text>
+                    <Text className="text-slate-500 text-lg font-medium leading-6">
+                        Sign in to access your reminders and learning goals.
+                    </Text>
+                </View>
 
-            <View className="space-y-4">
-                <View className="flex-row items-center bg-slate-50 border border-slate-200 rounded-xl px-4 h-14">
-                    <Mail color="#64748b" size={20} />
-                    <TextInput
-                        className="flex-1 ml-3 text-slate-900 text-base"
+                <View className="space-y-4 mb-8">
+                    <Input
+                        icon={Mail}
                         placeholder="Email"
-                        placeholderTextColor="#94a3b8"
                         value={email}
                         onChangeText={setEmail}
                         autoCapitalize="none"
+                        keyboardType="email-address"
                     />
-                </View>
-
-                <View className="flex-row items-center bg-slate-50 border border-slate-200 rounded-xl px-4 h-14 mb-4">
-                    <Lock color="#64748b" size={20} />
-                    <TextInput
-                        className="flex-1 ml-3 text-slate-900 text-base"
+                    <Input
+                        icon={Lock}
                         placeholder="Password"
-                        placeholderTextColor="#94a3b8"
                         value={password}
                         onChangeText={setPassword}
                         secureTextEntry
@@ -68,26 +72,20 @@ export default function Login() {
                     />
                 </View>
 
-                <TouchableOpacity
-                    className="bg-slate-900 h-14 rounded-xl justify-center items-center shadow-lg shadow-slate-900/20"
-                    onPress={signInWithEmail}
-                    disabled={loading}
-                >
-                    {loading ? (
-                        <ActivityIndicator color="white" />
-                    ) : (
-                        <Text className="text-white font-bold text-lg">Sign In</Text>
-                    )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    className="h-14 justify-center items-center"
-                    onPress={signUpWithEmail}
-                    disabled={loading}
-                >
-                    <Text className="text-slate-600 font-medium">Don't have an account? Sign Up</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
+                <View className="space-y-4">
+                    <Button
+                        title="Sign In"
+                        onPress={signInWithEmail}
+                        loading={loading}
+                    />
+                    <Button
+                        title="Create Account"
+                        variant="ghost"
+                        onPress={signUpWithEmail}
+                        loading={loading}
+                    />
+                </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
     )
 }
