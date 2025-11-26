@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import { Input } from '../components/ui/Input';
+import { Button } from '../components/ui/Button';
+import { Type } from 'lucide-react-native';
 
 export default function AddReminder() {
     const [title, setTitle] = useState('');
@@ -28,27 +31,47 @@ export default function AddReminder() {
     };
 
     return (
-        <View className="flex-1 bg-slate-50 p-4">
-            <Stack.Screen options={{ title: 'New Reminder', presentation: 'modal' }} />
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            className="flex-1 bg-slate-50 p-6"
+        >
+            <Stack.Screen options={{
+                title: 'New Reminder',
+                presentation: 'modal',
+                headerStyle: { backgroundColor: '#f8fafc' },
+                headerShadowVisible: false,
+            }} />
 
-            <View className="bg-white p-4 rounded-xl border border-slate-200 mb-4">
-                <Text className="text-slate-500 mb-1 text-sm">Title</Text>
-                <TextInput
-                    className="text-lg text-slate-900 border-b border-slate-100 pb-2"
-                    placeholder="What needs to be done?"
-                    value={title}
-                    onChangeText={setTitle}
-                    autoFocus
-                />
+            <View className="flex-1 pt-4">
+                <Text className="text-slate-900 font-bold text-2xl mb-6">What needs to be done?</Text>
+
+                <View className="space-y-4">
+                    <Input
+                        icon={Type}
+                        placeholder="E.g., Buy groceries, Call mom..."
+                        value={title}
+                        onChangeText={setTitle}
+                        autoFocus
+                    />
+                </View>
+
+                <View className="flex-1" />
+
+                <View className="flex-row gap-3 mb-8">
+                    <Button
+                        title="Cancel"
+                        variant="ghost"
+                        className="flex-1"
+                        onPress={() => router.back()}
+                    />
+                    <Button
+                        title="Create Reminder"
+                        className="flex-[2]"
+                        onPress={handleSave}
+                        loading={loading}
+                    />
+                </View>
             </View>
-
-            <TouchableOpacity
-                className={`bg-slate-900 p-4 rounded-xl items-center ${loading ? 'opacity-50' : ''}`}
-                onPress={handleSave}
-                disabled={loading}
-            >
-                <Text className="text-white font-bold text-lg">Save Reminder</Text>
-            </TouchableOpacity>
-        </View>
+        </KeyboardAvoidingView>
     );
 }
