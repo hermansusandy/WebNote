@@ -1,68 +1,91 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl, SafeAreaView } from 'react-native';
-import { supabase } from '../../lib/supabase';
+import { View, Text, FlatList, TouchableOpacity, RefreshControl, Linking, Image } from 'react-native';
+import { supabase } from '../lib/supabase';
 import { Plus, ArrowUpDown } from 'lucide-react-native';
 import { Stack, useRouter } from 'expo-router';
-import { CustomHeader } from '../../components/ui/CustomHeader';
-import { SearchBar } from '../../components/ui/SearchBar';
-import { FilterRow } from '../../components/ui/FilterRow';
-import { ListItem } from '../../components/ui/ListItem';
+import { CustomHeader } from '../components/ui/CustomHeader';
+import { SearchBar } from '../components/ui/SearchBar';
+import { FilterRow } from '../components/ui/FilterRow';
+import { ListItem } from '../components/ui/ListItem';
 
-export default function Learning() {
+export default function Labels() {
     const [items, setItems] = useState<any[]>([]);
+    const [categories, setCategories] = useState<any[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState('All Categories');
+    const [selectedSubCategory, setSelectedSubCategory] = useState('All Sub-Categories');
     const [refreshing, setRefreshing] = useState(false);
     const router = useRouter();
 
-    const fetchItems = async () => {
+    const fetchData = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
+        // Fetch Items
         const { data } = await supabase
-            .from('learning_titles')
-            .select('*')
+            .from('youtube_items')
+            .select(`
+        *,
+        category:youtube_categories(id, name, color)
+      `)
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
         if (data) setItems(data);
+
+        // Fetch Categories
+        const { data: cats } = await supabase
+            .from('youtube_categories')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('name');
+
+        if (cats) setCategories(cats);
     };
 
     const onRefresh = async () => {
         setRefreshing(true);
-        await fetchItems();
+        await fetchData();
         setRefreshing(false);
     };
 
     useEffect(() => {
-        fetchItems();
+        fetchData();
     }, []);
 
+    const filteredItems = items.filter(item => {
+        if (selectedCategory === 'All Categories') return true;
+        return item.category?.name === selectedCategory;
+    });
+
     const renderItem = ({ item, index }: { item: any, index: number }) => (
-        <ListItem
-            index={index + 1}
-            title={item.title}
-            onEdit={() => router.push({ pathname: '/add-learning', params: { id: item.id } })}
-            onDelete={async () => {
-                const { error } = await supabase.from('learning_titles').delete().eq('id', item.id);
-                if (!error) fetchItems();
-            }}
-        />
+        <TouchableOpacity onPress={() => item.url && Linking.openURL(item.url)}>
+            <ListItem
+                index={index + 1}
+                title={item.name}
+                onEdit={() => router.push({ pathname: '/add-label', params: { id: item.id } })}
+                onDelete={async () => {
+                    const { error } = await supabase.from('youtube_items').delete().eq('id', item.id);
+                    if (!error) fetchData();
+                }}
+            />
+        </TouchableOpacity>
     );
 
     return (
         <View className="flex-1 bg-white">
             <Stack.Screen options={{ headerShown: false }} />
-            <CustomHeader />
+            <CustomHeader title="Label" />
 
             <View className="flex-1 px-4 pt-4">
-                <Text className="text-3xl font-bold text-slate-900 mb-4">Learning</Text>
+                <Text className="text-3xl font-bold text-slate-900 mb-4">Label</Text>
 
                 <FilterRow
-                    categories={[]}
-                    subCategories={[]}
-                    selectedCategory="All Categories"
-                    selectedSubCategory="All Sub-Categories"
-                    onSelectCategory={() => { }}
-                    onSelectSubCategory={() => { }}
+                    categories={categories}
+                    subCategories={[]} // No subcategories for Labels/YouTube
+                    selectedCategory={selectedCategory}
+                    selectedSubCategory={selectedSubCategory}
+                    onSelectCategory={setSelectedCategory}
+                    onSelectSubCategory={setSelectedSubCategory}
                 />
                 <SearchBar />
 
@@ -81,14 +104,14 @@ export default function Learning() {
                 </View>
 
                 <FlatList
-                    data={items}
+                    data={filteredItems}
                     renderItem={renderItem}
                     keyExtractor={item => item.id}
                     contentContainerStyle={{ paddingBottom: 100 }}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                     ListEmptyComponent={
                         <View className="items-center justify-center py-20">
-                            <Text className="text-slate-400">No topics found</Text>
+                            <Text className="text-slate-400">No labels found</Text>
                         </View>
                     }
                 />
@@ -96,7 +119,7 @@ export default function Learning() {
 
             <TouchableOpacity
                 className="absolute bottom-8 right-6 bg-purple-600 w-14 h-14 rounded-full items-center justify-center shadow-lg shadow-purple-600/30"
-                onPress={() => router.push('/add-learning')}
+                onPress={() => router.push('/add-label')}
             >
                 <Plus color="white" size={24} />
             </TouchableOpacity>

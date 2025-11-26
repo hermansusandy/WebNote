@@ -40,8 +40,11 @@ export default function Reminders() {
         <ListItem
             index={index + 1}
             title={item.title}
-            onEdit={() => { }}
-            onDelete={() => { }}
+            onEdit={() => router.push({ pathname: '/add-reminder', params: { id: item.id } })}
+            onDelete={async () => {
+                const { error } = await supabase.from('reminders').delete().eq('id', item.id);
+                if (!error) fetchItems();
+            }}
         />
     );
 
@@ -53,7 +56,14 @@ export default function Reminders() {
             <View className="flex-1 px-4 pt-4">
                 <Text className="text-3xl font-bold text-slate-900 mb-4">Reminders</Text>
 
-                <FilterRow />
+                <FilterRow
+                    categories={[]}
+                    subCategories={[]}
+                    selectedCategory="All Categories"
+                    selectedSubCategory="All Sub-Categories"
+                    onSelectCategory={() => { }}
+                    onSelectSubCategory={() => { }}
+                />
                 <SearchBar />
 
                 <View className="flex-row items-center justify-between mb-2 px-4">

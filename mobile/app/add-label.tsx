@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { BookOpen, StickyNote } from 'lucide-react-native';
+import { Link, Type, StickyNote } from 'lucide-react-native';
 
-export default function AddLearning() {
-    const [title, setTitle] = useState('');
-    const [notes, setNotes] = useState('');
+export default function AddLabel() {
+    const [name, setName] = useState('');
+    const [url, setUrl] = useState('');
+    const [note, setNote] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
     const params = useLocalSearchParams();
@@ -21,32 +22,29 @@ export default function AddLearning() {
     }, [id]);
 
     const fetchItem = async () => {
-        const { data } = await supabase.from('learning_titles').select('*').eq('id', id).single();
+        const { data } = await supabase.from('youtube_items').select('*').eq('id', id).single();
         if (data) {
-            setTitle(data.title);
-            setNotes(data.notes || '');
+            setName(data.name);
+            setUrl(data.url);
+            setNote(data.note || '');
         }
     };
 
     const handleSave = async () => {
-        if (!title.trim()) return;
+        if (!name.trim()) return;
 
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
 
         if (user) {
             if (id) {
-                await supabase.from('learning_titles').update({
-                    title,
-                    notes,
-                }).eq('id', id);
+                await supabase.from('youtube_items').update({ name, url, note }).eq('id', id);
             } else {
-                await supabase.from('learning_titles').insert({
+                await supabase.from('youtube_items').insert({
                     user_id: user.id,
-                    title,
-                    notes,
-                    status: 'Planned',
-                    priority: 'Medium'
+                    name,
+                    url,
+                    note
                 });
             }
             router.back();
@@ -55,31 +53,35 @@ export default function AddLearning() {
     };
 
     return (
-        <ScrollView className="flex-1 bg-white p-6 pt-12">
+        <View className="flex-1 bg-white p-6 pt-12">
             <Text className="text-2xl font-bold text-slate-900 mb-8">
-                {id ? 'Edit Learning Goal' : 'Add Learning Goal'}
+                {id ? 'Edit Label' : 'Add Label'}
             </Text>
 
             <View className="space-y-4">
                 <Input
-                    icon={BookOpen}
-                    placeholder="E.g., React Native, Python, Piano..."
-                    value={title}
-                    onChangeText={setTitle}
+                    icon={Type}
+                    placeholder="Name"
+                    value={name}
+                    onChangeText={setName}
                     autoFocus
                 />
                 <Input
+                    icon={Link}
+                    placeholder="URL"
+                    value={url}
+                    onChangeText={setUrl}
+                    autoCapitalize="none"
+                />
+                <Input
                     icon={StickyNote}
-                    placeholder="Notes (optional)"
-                    value={notes}
-                    onChangeText={setNotes}
-                    multiline
-                    numberOfLines={4}
-                    style={{ height: 100, textAlignVertical: 'top' }}
+                    placeholder="Note"
+                    value={note}
+                    onChangeText={setNote}
                 />
             </View>
 
-            <View className="flex-row gap-3 mb-8 mt-8">
+            <View className="flex-row gap-3 mt-8">
                 <Button
                     title="Cancel"
                     variant="ghost"
@@ -87,12 +89,12 @@ export default function AddLearning() {
                     onPress={() => router.back()}
                 />
                 <Button
-                    title={id ? 'Update' : 'Start Learning'}
+                    title={id ? 'Update' : 'Add'}
                     className="flex-[2]"
                     onPress={handleSave}
                     loading={loading}
                 />
             </View>
-        </ScrollView>
+        </View>
     );
 }

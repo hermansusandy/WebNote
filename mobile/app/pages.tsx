@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl, SafeAreaView } from 'react-native';
-import { supabase } from '../../lib/supabase';
+import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { supabase } from '../lib/supabase';
 import { Plus, ArrowUpDown } from 'lucide-react-native';
 import { Stack, useRouter } from 'expo-router';
-import { CustomHeader } from '../../components/ui/CustomHeader';
-import { SearchBar } from '../../components/ui/SearchBar';
-import { FilterRow } from '../../components/ui/FilterRow';
-import { ListItem } from '../../components/ui/ListItem';
+import { CustomHeader } from '../components/ui/CustomHeader';
+import { SearchBar } from '../components/ui/SearchBar';
+import { ListItem } from '../components/ui/ListItem';
 
-export default function Learning() {
+export default function Pages() {
     const [items, setItems] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const router = useRouter();
@@ -18,10 +17,11 @@ export default function Learning() {
         if (!user) return;
 
         const { data } = await supabase
-            .from('learning_titles')
+            .from('pages')
             .select('*')
             .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
+            .is('parent_id', null)
+            .order('sort_order', { ascending: true });
 
         if (data) setItems(data);
     };
@@ -40,9 +40,9 @@ export default function Learning() {
         <ListItem
             index={index + 1}
             title={item.title}
-            onEdit={() => router.push({ pathname: '/add-learning', params: { id: item.id } })}
+            onEdit={() => router.push({ pathname: '/add-page', params: { id: item.id } })}
             onDelete={async () => {
-                const { error } = await supabase.from('learning_titles').delete().eq('id', item.id);
+                const { error } = await supabase.from('pages').delete().eq('id', item.id);
                 if (!error) fetchItems();
             }}
         />
@@ -51,19 +51,11 @@ export default function Learning() {
     return (
         <View className="flex-1 bg-white">
             <Stack.Screen options={{ headerShown: false }} />
-            <CustomHeader />
+            <CustomHeader title="Pages" />
 
             <View className="flex-1 px-4 pt-4">
-                <Text className="text-3xl font-bold text-slate-900 mb-4">Learning</Text>
+                <Text className="text-3xl font-bold text-slate-900 mb-4">Pages</Text>
 
-                <FilterRow
-                    categories={[]}
-                    subCategories={[]}
-                    selectedCategory="All Categories"
-                    selectedSubCategory="All Sub-Categories"
-                    onSelectCategory={() => { }}
-                    onSelectSubCategory={() => { }}
-                />
                 <SearchBar />
 
                 <View className="flex-row items-center justify-between mb-2 px-4">
@@ -88,7 +80,7 @@ export default function Learning() {
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                     ListEmptyComponent={
                         <View className="items-center justify-center py-20">
-                            <Text className="text-slate-400">No topics found</Text>
+                            <Text className="text-slate-400">No pages found</Text>
                         </View>
                     }
                 />
@@ -96,7 +88,7 @@ export default function Learning() {
 
             <TouchableOpacity
                 className="absolute bottom-8 right-6 bg-purple-600 w-14 h-14 rounded-full items-center justify-center shadow-lg shadow-purple-600/30"
-                onPress={() => router.push('/add-learning')}
+                onPress={() => router.push('/add-page')}
             >
                 <Plus color="white" size={24} />
             </TouchableOpacity>

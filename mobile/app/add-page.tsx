@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { BookOpen, StickyNote } from 'lucide-react-native';
+import { Type } from 'lucide-react-native';
 
-export default function AddLearning() {
+export default function AddPage() {
     const [title, setTitle] = useState('');
-    const [notes, setNotes] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
     const params = useLocalSearchParams();
@@ -21,10 +20,9 @@ export default function AddLearning() {
     }, [id]);
 
     const fetchItem = async () => {
-        const { data } = await supabase.from('learning_titles').select('*').eq('id', id).single();
+        const { data } = await supabase.from('pages').select('*').eq('id', id).single();
         if (data) {
             setTitle(data.title);
-            setNotes(data.notes || '');
         }
     };
 
@@ -36,17 +34,11 @@ export default function AddLearning() {
 
         if (user) {
             if (id) {
-                await supabase.from('learning_titles').update({
-                    title,
-                    notes,
-                }).eq('id', id);
+                await supabase.from('pages').update({ title }).eq('id', id);
             } else {
-                await supabase.from('learning_titles').insert({
+                await supabase.from('pages').insert({
                     user_id: user.id,
                     title,
-                    notes,
-                    status: 'Planned',
-                    priority: 'Medium'
                 });
             }
             router.back();
@@ -55,31 +47,22 @@ export default function AddLearning() {
     };
 
     return (
-        <ScrollView className="flex-1 bg-white p-6 pt-12">
+        <View className="flex-1 bg-white p-6 pt-12">
             <Text className="text-2xl font-bold text-slate-900 mb-8">
-                {id ? 'Edit Learning Goal' : 'Add Learning Goal'}
+                {id ? 'Edit Page' : 'Add Page'}
             </Text>
 
             <View className="space-y-4">
                 <Input
-                    icon={BookOpen}
-                    placeholder="E.g., React Native, Python, Piano..."
+                    icon={Type}
+                    placeholder="Page Title"
                     value={title}
                     onChangeText={setTitle}
                     autoFocus
                 />
-                <Input
-                    icon={StickyNote}
-                    placeholder="Notes (optional)"
-                    value={notes}
-                    onChangeText={setNotes}
-                    multiline
-                    numberOfLines={4}
-                    style={{ height: 100, textAlignVertical: 'top' }}
-                />
             </View>
 
-            <View className="flex-row gap-3 mb-8 mt-8">
+            <View className="flex-row gap-3 mt-8">
                 <Button
                     title="Cancel"
                     variant="ghost"
@@ -87,12 +70,12 @@ export default function AddLearning() {
                     onPress={() => router.back()}
                 />
                 <Button
-                    title={id ? 'Update' : 'Start Learning'}
+                    title={id ? 'Update' : 'Create'}
                     className="flex-[2]"
                     onPress={handleSave}
                     loading={loading}
                 />
             </View>
-        </ScrollView>
+        </View>
     );
 }
