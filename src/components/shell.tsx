@@ -3,6 +3,9 @@
 import * as React from "react"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Sidebar } from "@/components/sidebar"
+import { MobileNav } from "@/components/mobile-nav"
+import { useMobile } from "@/hooks/use-mobile"
+
 import { cn } from "@/lib/utils"
 
 interface ShellProps {
@@ -12,6 +15,7 @@ interface ShellProps {
 export function Shell({ children }: ShellProps) {
     const [isCollapsed, setIsCollapsed] = React.useState(false)
     const [mounted, setMounted] = React.useState(false)
+    const isMobile = useMobile()
 
     React.useEffect(() => {
         setMounted(true)
@@ -19,6 +23,20 @@ export function Shell({ children }: ShellProps) {
 
     if (!mounted) {
         return null
+    }
+
+    if (isMobile) {
+        return (
+            <div className="flex flex-col min-h-screen">
+                <div className="p-4 border-b flex items-center gap-4">
+                    <MobileNav />
+                    <span className="font-semibold">WebNote</span>
+                </div>
+                <div className="flex-1 overflow-y-auto p-2 md:p-4">
+                    {children}
+                </div>
+            </div>
+        )
     }
 
     return (

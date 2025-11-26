@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Search, Trash, CheckCircle2, Circle, Filter, X, Pencil, Check, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
+import { cn } from "@/lib/utils"
+
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { CategoryManager } from "@/components/category-manager"
@@ -232,11 +234,11 @@ export default function LearningPage() {
 
     return (
         <div className="space-y-8 pb-20">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h1 className="text-3xl font-bold tracking-tight">Learning Planner</h1>
-                <div className="flex gap-2">
+                <div className="flex gap-2 w-full md:w-auto">
                     <CategoryManager tableName="learning_categories" title="Categories" onUpdate={fetchCategories} />
-                    <Button onClick={handleCreate}>
+                    <Button onClick={handleCreate} className="flex-1 md:flex-none">
                         <Plus className="mr-2 h-4 w-4" />
                         New Topic
                     </Button>
@@ -244,72 +246,74 @@ export default function LearningPage() {
             </div>
 
             <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 flex-wrap">
                     <div className="relative flex-1 min-w-[200px] max-w-sm">
                         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Search topics..."
-                            className="pl-8"
+                            className="pl-8 w-full"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
 
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-[150px]">
-                            <div className="flex items-center gap-2">
-                                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                                <SelectValue placeholder="Status" />
-                            </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Status</SelectItem>
-                            <SelectItem value="Planned">Planned</SelectItem>
-                            <SelectItem value="In Progress">In Progress</SelectItem>
-                            <SelectItem value="Completed">Completed</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <div className="flex flex-wrap gap-2">
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger className="w-full md:w-[150px] flex-1 md:flex-none">
+                                <div className="flex items-center gap-2">
+                                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <SelectValue placeholder="Status" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Status</SelectItem>
+                                <SelectItem value="Planned">Planned</SelectItem>
+                                <SelectItem value="In Progress">In Progress</SelectItem>
+                                <SelectItem value="Completed">Completed</SelectItem>
+                            </SelectContent>
+                        </Select>
 
-                    <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                        <SelectTrigger className="w-[150px]">
-                            <div className="flex items-center gap-2">
-                                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                                <SelectValue placeholder="Priority" />
-                            </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Priority</SelectItem>
-                            <SelectItem value="High">High</SelectItem>
-                            <SelectItem value="Medium">Medium</SelectItem>
-                            <SelectItem value="Low">Low</SelectItem>
-                        </SelectContent>
-                    </Select>
+                        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                            <SelectTrigger className="w-full md:w-[150px] flex-1 md:flex-none">
+                                <div className="flex items-center gap-2">
+                                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <SelectValue placeholder="Priority" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Priority</SelectItem>
+                                <SelectItem value="High">High</SelectItem>
+                                <SelectItem value="Medium">Medium</SelectItem>
+                                <SelectItem value="Low">Low</SelectItem>
+                            </SelectContent>
+                        </Select>
 
-                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                        <SelectTrigger className="w-[150px]">
-                            <div className="flex items-center gap-2">
-                                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                                <SelectValue placeholder="Category" />
-                            </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Categories</SelectItem>
-                            <SelectItem value="Uncategorized">Uncategorized</SelectItem>
-                            {categories.map(cat => (
-                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                            <SelectTrigger className="w-full md:w-[150px] flex-1 md:flex-none">
+                                <div className="flex items-center gap-2">
+                                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <SelectValue placeholder="Category" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Categories</SelectItem>
+                                <SelectItem value="Uncategorized">Uncategorized</SelectItem>
+                                {categories.map(cat => (
+                                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
 
-                    {(statusFilter !== "All" || priorityFilter !== "All" || categoryFilter !== "All") && (
-                        <Button variant="ghost" size="icon" onClick={() => {
-                            setStatusFilter("All")
-                            setPriorityFilter("All")
-                            setCategoryFilter("All")
-                        }}>
-                            <X className="h-4 w-4" />
-                        </Button>
-                    )}
+                        {(statusFilter !== "All" || priorityFilter !== "All" || categoryFilter !== "All") && (
+                            <Button variant="ghost" size="icon" onClick={() => {
+                                statusFilter !== "All" && setStatusFilter("All")
+                                priorityFilter !== "All" && setPriorityFilter("All")
+                                categoryFilter !== "All" && setCategoryFilter("All")
+                            }}>
+                                <X className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 {selectedItems.size > 0 && (
@@ -328,7 +332,7 @@ export default function LearningPage() {
             </div>
 
             <div className="space-y-2">
-                <div className="flex items-center gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
+                <div className="hidden md:flex items-center gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
                     <Checkbox
                         checked={sortedItems.length > 0 && selectedItems.size === sortedItems.length}
                         onCheckedChange={toggleSelectAll}
@@ -363,13 +367,33 @@ export default function LearningPage() {
                         const isEditing = editingId === item.id
 
                         return (
-                            <div key={item.id} className={`flex items-center gap-4 p-2 border rounded-lg bg-card transition-colors group ${selectedItems.has(item.id) ? 'bg-accent/50 border-primary/50' : 'hover:bg-accent/50'}`}>
-                                <Checkbox
-                                    checked={selectedItems.has(item.id)}
-                                    onCheckedChange={() => toggleSelection(item.id)}
-                                />
-                                <div className="w-10 text-muted-foreground text-xs">{item.displayIndex}</div>
-                                <div className="w-[30%]">
+                            <div key={item.id} className={`flex flex-col md:flex-row md:items-center gap-4 p-4 md:p-2 border rounded-lg bg-card transition-colors group ${selectedItems.has(item.id) ? 'bg-accent/50 border-primary/50' : 'hover:bg-accent/50'}`}>
+                                <div className="flex items-center justify-between md:w-auto w-full">
+                                    <div className="flex items-center gap-3">
+                                        <Checkbox
+                                            checked={selectedItems.has(item.id)}
+                                            onCheckedChange={() => toggleSelection(item.id)}
+                                        />
+                                        <div className="w-10 text-muted-foreground text-xs md:block hidden">{item.displayIndex}</div>
+                                    </div>
+                                    {/* Mobile Actions */}
+                                    <div className="flex md:hidden items-center gap-1">
+                                        {isEditing ? (
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => setEditingId(null)}>
+                                                <Check className="h-4 w-4" />
+                                            </Button>
+                                        ) : (
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setEditingId(item.id)}>
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(item.id)}>
+                                            <Trash className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="w-full md:w-[30%]">
                                     {isEditing ? (
                                         <Input
                                             value={item.title}
@@ -381,7 +405,7 @@ export default function LearningPage() {
                                     )}
                                 </div>
 
-                                <div className="flex-1 min-w-0">
+                                <div className="flex-1 min-w-0 w-full">
                                     {isEditing ? (
                                         <Textarea
                                             value={item.notes || ''}
@@ -394,74 +418,76 @@ export default function LearningPage() {
                                     )}
                                 </div>
 
-                                <div className="w-[140px]">
-                                    {isEditing ? (
-                                        <Select
-                                            value={item.category_id || "none"}
-                                            onValueChange={(val) => handleUpdate(item.id, { category_id: val === "none" ? null : val })}
-                                        >
-                                            <SelectTrigger className="h-8 text-xs w-full">
-                                                <SelectValue placeholder="No Category" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">No Category</SelectItem>
-                                                {categories.map(cat => (
-                                                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <Badge variant="secondary" className="font-normal">
-                                            {item.category?.name || "No Category"}
-                                        </Badge>
-                                    )}
+                                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
+                                    <div className="w-full md:w-[140px] flex-1 md:flex-none min-w-[120px]">
+                                        {isEditing ? (
+                                            <Select
+                                                value={item.category_id || "none"}
+                                                onValueChange={(val) => handleUpdate(item.id, { category_id: val === "none" ? null : val })}
+                                            >
+                                                <SelectTrigger className="h-8 text-xs w-full">
+                                                    <SelectValue placeholder="No Category" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">No Category</SelectItem>
+                                                    {categories.map(cat => (
+                                                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        ) : (
+                                            <Badge variant="secondary" className="font-normal w-full justify-center md:w-auto md:justify-start">
+                                                {item.category?.name || "No Category"}
+                                            </Badge>
+                                        )}
+                                    </div>
+
+                                    <div className="w-[100px] md:w-[120px] flex-1 md:flex-none">
+                                        {isEditing ? (
+                                            <Select
+                                                value={item.status}
+                                                onValueChange={(val) => handleUpdate(item.id, { status: val })}
+                                            >
+                                                <SelectTrigger className="h-8 text-xs w-full">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Planned">Planned</SelectItem>
+                                                    <SelectItem value="In Progress">In Progress</SelectItem>
+                                                    <SelectItem value="Completed">Completed</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        ) : (
+                                            <Badge variant="outline" className={cn(getStatusColor(item.status), "w-full justify-center md:w-auto md:justify-start")}>
+                                                {item.status}
+                                            </Badge>
+                                        )}
+                                    </div>
+
+                                    <div className="w-[100px] md:w-[120px] flex-1 md:flex-none">
+                                        {isEditing ? (
+                                            <Select
+                                                value={item.priority}
+                                                onValueChange={(val) => handleUpdate(item.id, { priority: val })}
+                                            >
+                                                <SelectTrigger className="h-8 text-xs w-full">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Low">Low</SelectItem>
+                                                    <SelectItem value="Medium">Medium</SelectItem>
+                                                    <SelectItem value="High">High</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        ) : (
+                                            <Badge variant="outline" className={cn(getPriorityColor(item.priority), "w-full justify-center md:w-auto md:justify-start")}>
+                                                {item.priority}
+                                            </Badge>
+                                        )}
+                                    </div>
                                 </div>
 
-                                <div className="w-[120px]">
-                                    {isEditing ? (
-                                        <Select
-                                            value={item.status}
-                                            onValueChange={(val) => handleUpdate(item.id, { status: val })}
-                                        >
-                                            <SelectTrigger className="h-8 text-xs">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Planned">Planned</SelectItem>
-                                                <SelectItem value="In Progress">In Progress</SelectItem>
-                                                <SelectItem value="Completed">Completed</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <Badge variant="outline" className={getStatusColor(item.status)}>
-                                            {item.status}
-                                        </Badge>
-                                    )}
-                                </div>
-
-                                <div className="w-[120px]">
-                                    {isEditing ? (
-                                        <Select
-                                            value={item.priority}
-                                            onValueChange={(val) => handleUpdate(item.id, { priority: val })}
-                                        >
-                                            <SelectTrigger className="h-8 text-xs">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Low">Low</SelectItem>
-                                                <SelectItem value="Medium">Medium</SelectItem>
-                                                <SelectItem value="High">High</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <Badge variant="outline" className={getPriorityColor(item.priority)}>
-                                            {item.priority}
-                                        </Badge>
-                                    )}
-                                </div>
-
-                                <div className="w-20 flex items-center gap-1">
+                                <div className="w-20 hidden md:flex items-center gap-1">
                                     {isEditing ? (
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => setEditingId(null)}>
                                             <Check className="h-4 w-4" />

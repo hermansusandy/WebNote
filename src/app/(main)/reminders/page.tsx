@@ -154,127 +154,136 @@ export default function RemindersPage() {
     const pastItems = filteredItems.filter(item => isPast(new Date(item.due_at)) && !isToday(new Date(item.due_at)))
 
     const ReminderItem = ({ item }: { item: any }) => (
-        <div className={`flex items-center gap-4 p-3 border rounded-lg bg-card transition-colors group ${selectedItems.has(item.id) ? 'bg-accent/50 border-primary/50' : 'hover:bg-accent/50'}`}>
-            <Checkbox
-                checked={selectedItems.has(item.id)}
-                onCheckedChange={() => toggleSelection(item.id)}
-            />
-            <div className="flex-1 flex items-center gap-4">
+        <div className={`flex flex-col md:flex-row items-start md:items-center gap-4 p-3 border rounded-lg bg-card transition-colors group ${selectedItems.has(item.id) ? 'bg-accent/50 border-primary/50' : 'hover:bg-accent/50'}`}>
+            <div className="flex items-center gap-3 w-full md:w-auto">
+                <Checkbox
+                    checked={selectedItems.has(item.id)}
+                    onCheckedChange={() => toggleSelection(item.id)}
+                />
                 <Input
                     value={item.title}
                     onChange={(e) => handleUpdate(item.id, { title: e.target.value })}
-                    className="font-medium border-none shadow-none p-0 h-auto focus-visible:ring-0 bg-transparent flex-1"
+                    className="font-medium border-none shadow-none p-0 h-auto focus-visible:ring-0 bg-transparent flex-1 md:w-auto"
                 />
-
-                <div className="w-[140px]">
-                    <Select
-                        value={item.category_id || "none"}
-                        onValueChange={(val) => handleUpdate(item.id, { category_id: val === "none" ? null : val })}
-                    >
-                        <SelectTrigger className="h-8 text-xs border-transparent bg-transparent hover:border-input focus:border-input">
-                            <SelectValue placeholder="No Category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="none">No Category</SelectItem>
-                            {categories.map(cat => (
-                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                <div className="w-[100px]">
-                    <Select
-                        value={item.priority || "Medium"}
-                        onValueChange={(val) => handleUpdate(item.id, { priority: val })}
-                    >
-                        <SelectTrigger className="h-8 text-xs border-transparent bg-transparent hover:border-input focus:border-input">
-                            <SelectValue placeholder="Priority" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Low">Low</SelectItem>
-                            <SelectItem value="Medium">Medium</SelectItem>
-                            <SelectItem value="High">High</SelectItem>
-                            <SelectItem value="Urgent">Urgent</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button
-                            variant={"outline"}
-                            className={cn(
-                                "w-[180px] justify-start text-left font-normal h-8 text-xs",
-                                !item.due_at && "text-muted-foreground"
-                            )}
-                        >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {item.due_at ? format(new Date(item.due_at), "PPP") : <span>Pick a date</span>}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                            mode="single"
-                            selected={new Date(item.due_at)}
-                            onSelect={(date) => date && handleUpdate(item.id, { due_at: date.toISOString() })}
-                            initialFocus
-                        />
-                    </PopoverContent>
-                </Popover>
             </div>
-            <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 text-destructive" onClick={() => handleDelete(item.id)}>
-                <Trash className="h-4 w-4" />
-            </Button>
+
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-between md:justify-end md:ml-auto mt-2 md:mt-0">
+                <div className="flex flex-wrap items-center gap-2 flex-1 md:flex-none">
+                    <div className="w-full md:w-[140px] flex-1 md:flex-none min-w-[120px]">
+                        <Select
+                            value={item.category_id || "none"}
+                            onValueChange={(val) => handleUpdate(item.id, { category_id: val === "none" ? null : val })}
+                        >
+                            <SelectTrigger className="h-8 text-xs border-transparent bg-transparent hover:border-input focus:border-input w-full">
+                                <SelectValue placeholder="No Category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">No Category</SelectItem>
+                                {categories.map(cat => (
+                                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="w-[90px] md:w-[100px] flex-1 md:flex-none">
+                        <Select
+                            value={item.priority || "Medium"}
+                            onValueChange={(val) => handleUpdate(item.id, { priority: val })}
+                        >
+                            <SelectTrigger className="h-8 text-xs border-transparent bg-transparent hover:border-input focus:border-input w-full">
+                                <SelectValue placeholder="Priority" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Low">Low</SelectItem>
+                                <SelectItem value="Medium">Medium</SelectItem>
+                                <SelectItem value="High">High</SelectItem>
+                                <SelectItem value="Urgent">Urgent</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn(
+                                    "w-auto md:w-[180px] justify-start text-left font-normal h-8 text-xs",
+                                    !item.due_at && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                <span className="hidden md:inline">{item.due_at ? format(new Date(item.due_at), "PPP") : <span>Pick a date</span>}</span>
+                                <span className="md:hidden">{item.due_at ? format(new Date(item.due_at), "MM/dd") : <span>Date</span>}</span>
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                mode="single"
+                                selected={new Date(item.due_at)}
+                                onSelect={(date) => date && handleUpdate(item.id, { due_at: date.toISOString() })}
+                                initialFocus
+                            />
+                        </PopoverContent>
+                    </Popover>
+                    <Button variant="ghost" size="icon" className="text-destructive md:opacity-0 md:group-hover:opacity-100" onClick={() => handleDelete(item.id)}>
+                        <Trash className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
         </div>
     )
 
     return (
         <div className="space-y-8 pb-20">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h1 className="text-3xl font-bold tracking-tight">Reminders</h1>
-                <div className="flex gap-2">
+                <div className="flex gap-2 w-full md:w-auto">
                     <CategoryManager tableName="reminder_categories" onUpdate={fetchCategories} title="Manage Categories" />
-                    <Button onClick={handleCreate}>
+                    <Button onClick={handleCreate} className="flex-1 md:flex-none">
                         <Plus className="mr-2 h-4 w-4" />
                         New Reminder
                     </Button>
                 </div>
             </div>
 
-            <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2">
-                    <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 flex-1">
+                    <div className="relative flex-1">
                         <Filter className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Search reminders..."
-                            className="pl-8"
+                            className="pl-8 w-full"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
 
-                    <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                        <SelectTrigger className="w-[130px]">
-                            <div className="flex items-center gap-2">
-                                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                                <SelectValue placeholder="Priority" />
-                            </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All Priority</SelectItem>
-                            <SelectItem value="Low">Low</SelectItem>
-                            <SelectItem value="Medium">Medium</SelectItem>
-                            <SelectItem value="High">High</SelectItem>
-                            <SelectItem value="Urgent">Urgent</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <div className="flex gap-2">
+                        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                            <SelectTrigger className="w-full md:w-[130px] flex-1">
+                                <div className="flex items-center gap-2">
+                                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <SelectValue placeholder="Priority" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All Priority</SelectItem>
+                                <SelectItem value="Low">Low</SelectItem>
+                                <SelectItem value="Medium">Medium</SelectItem>
+                                <SelectItem value="High">High</SelectItem>
+                                <SelectItem value="Urgent">Urgent</SelectItem>
+                            </SelectContent>
+                        </Select>
 
-                    {priorityFilter !== "All" && (
-                        <Button variant="ghost" size="icon" onClick={() => setPriorityFilter("All")}>
-                            <X className="h-4 w-4" />
-                        </Button>
-                    )}
+                        {priorityFilter !== "All" && (
+                            <Button variant="ghost" size="icon" onClick={() => setPriorityFilter("All")}>
+                                <X className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 {selectedItems.size > 0 && (
