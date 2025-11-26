@@ -245,7 +245,10 @@ export default function YoutubePage() {
     return (
         <div className="space-y-8 pb-20">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h1 className="text-3xl font-bold tracking-tight">Youtube</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Youtube (v2.0)</h1>
+                <div className="bg-red-500 text-white p-2 rounded mb-4">
+                    If you see this, the deployment is updated.
+                </div>
                 <div className="flex gap-2 w-full md:w-auto">
                     <CategoryManager tableName="youtube_categories" onUpdate={fetchCategories} title="Manage Categories" />
                     <Button onClick={handleCreate} className="flex-1 md:flex-none">
