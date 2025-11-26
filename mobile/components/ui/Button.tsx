@@ -1,8 +1,4 @@
 import { TouchableOpacity, Text, TouchableOpacityProps, ActivityIndicator } from 'react-native';
-import { styled } from 'nativewind';
-
-const StyledTouchableOpacity = styled(TouchableOpacity);
-const StyledText = styled(Text);
 
 interface ButtonProps extends TouchableOpacityProps {
     title: string;
@@ -25,7 +21,7 @@ export function Button({ title, variant = 'primary', loading, className, ...prop
     };
 
     return (
-        <StyledTouchableOpacity
+        <TouchableOpacity
             className={`${baseStyles} ${variants[variant]} ${loading ? 'opacity-80' : ''} ${className}`}
             disabled={loading || props.disabled}
             {...props}
@@ -33,8 +29,8 @@ export function Button({ title, variant = 'primary', loading, className, ...prop
             {loading ? (
                 <ActivityIndicator color={variant === 'primary' ? 'white' : '#0f172a'} />
             ) : (
-                <StyledText className={textStyles[variant]}>{title}</StyledText>
+                <Text className={textStyles[variant]}>{title}</Text>
             )}
-        </StyledTouchableOpacity>
+        </TouchableOpacity>
     );
 }
