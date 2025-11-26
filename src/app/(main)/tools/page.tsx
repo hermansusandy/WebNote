@@ -195,12 +195,12 @@ export default function ToolsPage() {
 
     return (
         <div className="space-y-8 pb-20">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h1 className="text-3xl font-bold tracking-tight">Tools/URL</h1>
-                <div className="flex gap-2">
+                <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
                     <CategoryManager tableName="web_url_categories" title="Categories" onUpdate={fetchCategories} />
                     <CategoryManager tableName="web_url_sub_categories" title="Sub-Categories" onUpdate={fetchSubCategories} />
-                    <Button onClick={handleCreate}>
+                    <Button onClick={handleCreate} className="w-full md:w-auto">
                         <Plus className="mr-2 h-4 w-4" />
                         New URL
                     </Button>
@@ -269,7 +269,8 @@ export default function ToolsPage() {
             </div>
 
             <div className="space-y-2">
-                <div className="flex items-center gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
+                {/* Desktop Header */}
+                <div className="hidden md:flex items-center gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
                     <Checkbox
                         checked={sortedItems.length > 0 && selectedItems.size === sortedItems.length}
                         onCheckedChange={toggleSelectAll}
@@ -296,6 +297,15 @@ export default function ToolsPage() {
                     <div className="w-20">Actions</div>
                 </div>
 
+                {/* Mobile Selection Header */}
+                <div className="md:hidden flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
+                    <Checkbox
+                        checked={sortedItems.length > 0 && selectedItems.size === sortedItems.length}
+                        onCheckedChange={toggleSelectAll}
+                    />
+                    <span>Select All</span>
+                </div>
+
                 {sortedItems.length === 0 ? (
                     <div className="p-8 text-center text-sm text-muted-foreground border rounded-md border-dashed">
                         No URLs found.
@@ -309,16 +319,35 @@ export default function ToolsPage() {
                             : `https://www.google.com/s2/favicons?domain=${item.url}&sz=128`
 
                         return (
-                            <div key={item.id} className={`flex items-center gap-4 p-2 border rounded-lg bg-card transition-colors group ${selectedItems.has(item.id) ? 'bg-accent/50 border-primary/50' : 'hover:bg-accent/50'}`}>
-                                <Checkbox
-                                    checked={selectedItems.has(item.id)}
-                                    onCheckedChange={() => toggleSelection(item.id)}
-                                />
-                                <div className="w-10 text-muted-foreground text-xs">{item.displayIndex}</div>
+                            <div key={item.id} className={`flex flex-col md:flex-row md:items-center gap-4 p-4 md:p-2 border rounded-lg bg-card transition-colors group ${selectedItems.has(item.id) ? 'bg-accent/50 border-primary/50' : 'hover:bg-accent/50'}`}>
+                                <div className="flex items-center justify-between md:w-auto w-full">
+                                    <div className="flex items-center gap-3">
+                                        <Checkbox
+                                            checked={selectedItems.has(item.id)}
+                                            onCheckedChange={() => toggleSelection(item.id)}
+                                        />
+                                        <div className="w-10 text-muted-foreground text-xs md:block hidden">{item.displayIndex}</div>
+                                        {/* Mobile Index */}
+                                        <div className="text-muted-foreground text-xs md:hidden">#{item.displayIndex}</div>
+                                    </div>
+                                    {/* Mobile Actions */}
+                                    <div className="flex md:hidden items-center gap-1">
+                                        {isEditing ? (
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => setEditingId(null)}>
+                                                <Check className="h-4 w-4" />
+                                            </Button>
+                                        ) : (
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setEditingId(item.id)}>
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(item.id)}>
+                                            <Trash className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
 
-
-
-                                <div className="w-[15%] relative group/name">
+                                <div className="w-full md:w-[15%] relative group/name">
                                     {isEditing ? (
                                         <Input
                                             value={item.name}
@@ -327,7 +356,7 @@ export default function ToolsPage() {
                                         />
                                     ) : (
                                         <>
-                                            <div className="font-semibold truncate cursor-help" title={item.name}>{item.name}</div>
+                                            <div className="font-semibold truncate cursor-help text-lg md:text-base" title={item.name}>{item.name}</div>
                                             {item.url && (
                                                 <div className="absolute left-0 top-full mt-2 hidden group-hover/name:block z-50 w-[320px] aspect-video rounded-lg overflow-hidden shadow-xl border bg-background animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
                                                     <img
@@ -341,7 +370,7 @@ export default function ToolsPage() {
                                     )}
                                 </div>
 
-                                <div className="w-[20%] flex items-center gap-2 min-w-0">
+                                <div className="w-full md:w-[20%] flex items-center gap-2 min-w-0">
                                     {isEditing ? (
                                         <Input
                                             value={item.url}
@@ -358,7 +387,7 @@ export default function ToolsPage() {
                                     )}
                                 </div>
 
-                                <div className="flex-1 min-w-0">
+                                <div className="flex-1 min-w-0 w-full">
                                     {isEditing ? (
                                         <Textarea
                                             value={item.remarks || ''}
@@ -371,45 +400,47 @@ export default function ToolsPage() {
                                     )}
                                 </div>
 
-                                <div className="w-[120px]">
-                                    {isEditing ? (
-                                        <Select value={item.category || ''} onValueChange={(val) => handleUpdate(item.id, { category: val })}>
-                                            <SelectTrigger className="h-8">
-                                                <SelectValue placeholder="Category" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {categories.map(cat => (
-                                                    <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <Badge variant="secondary" className="font-normal">
-                                            {item.category || "General"}
-                                        </Badge>
-                                    )}
+                                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
+                                    <div className="w-auto md:w-[120px] flex-1 md:flex-none min-w-[100px]">
+                                        {isEditing ? (
+                                            <Select value={item.category || ''} onValueChange={(val) => handleUpdate(item.id, { category: val })}>
+                                                <SelectTrigger className="h-8">
+                                                    <SelectValue placeholder="Category" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {categories.map(cat => (
+                                                        <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        ) : (
+                                            <Badge variant="secondary" className="font-normal w-full justify-center md:w-auto md:justify-start">
+                                                {item.category || "General"}
+                                            </Badge>
+                                        )}
+                                    </div>
+
+                                    <div className="w-auto md:w-[120px] flex-1 md:flex-none min-w-[100px]">
+                                        {isEditing ? (
+                                            <Select value={item.sub_category || ''} onValueChange={(val) => handleUpdate(item.id, { sub_category: val })}>
+                                                <SelectTrigger className="h-8">
+                                                    <SelectValue placeholder="Sub-Category" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {subCategories.map(cat => (
+                                                        <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        ) : (
+                                            <Badge variant="outline" className="font-normal text-muted-foreground w-full justify-center md:w-auto md:justify-start">
+                                                {item.sub_category || "-"}
+                                            </Badge>
+                                        )}
+                                    </div>
                                 </div>
 
-                                <div className="w-[120px]">
-                                    {isEditing ? (
-                                        <Select value={item.sub_category || ''} onValueChange={(val) => handleUpdate(item.id, { sub_category: val })}>
-                                            <SelectTrigger className="h-8">
-                                                <SelectValue placeholder="Sub-Category" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {subCategories.map(cat => (
-                                                    <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <Badge variant="outline" className="font-normal text-muted-foreground">
-                                            {item.sub_category || "-"}
-                                        </Badge>
-                                    )}
-                                </div>
-
-                                <div className="w-20 flex items-center gap-1">
+                                <div className="w-20 hidden md:flex items-center gap-1">
                                     {isEditing ? (
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => setEditingId(null)}>
                                             <Check className="h-4 w-4" />
