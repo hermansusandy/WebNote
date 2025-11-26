@@ -1,7 +1,38 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import { Plus, FileText } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase/client"
+import { toast } from "sonner"
 
 export default function PagesPage() {
+    const router = useRouter()
+
+    const handleCreatePage = async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+            router.push('/login')
+            return
+        }
+
+        const { data, error } = await supabase
+            .from('pages')
+            .insert({
+                user_id: user.id,
+                title: 'Untitled Page'
+            })
+            .select()
+            .single()
+
+        if (data) {
+            router.push(`/pages/${data.id}`)
+            toast.success("Page created successfully")
+        } else if (error) {
+            toast.error("Failed to create page")
+        }
+    }
+
     return (
         <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] text-center space-y-4">
             <div className="p-4 rounded-full bg-muted">
@@ -11,7 +42,7 @@ export default function PagesPage() {
             <p className="text-muted-foreground">
                 Select a page from the sidebar or create a new one.
             </p>
-            <Button>
+            <Button onClick={handleCreatePage}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create New Page
             </Button>
