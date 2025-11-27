@@ -49,12 +49,27 @@ export default function PageDetail() {
         if (params.id) fetchPageAndContent()
     }, [params.id])
 
-    const updateTitle = async (newTitle: string) => {
+    // Debounced title update
+    useEffect(() => {
+        if (title === page?.title) return
+
+        const timer = setTimeout(async () => {
+            console.log("Saving title:", title)
+            const { error } = await supabase
+                .from('pages')
+                .update({ title: title })
+                .eq('id', params.id)
+
+            if (!error) {
+                setPage((prev: any) => ({ ...prev, title }))
+            }
+        }, 1000)
+
+        return () => clearTimeout(timer)
+    }, [title, params.id, page?.title])
+
+    const updateTitle = (newTitle: string) => {
         setTitle(newTitle)
-        await supabase
-            .from('pages')
-            .update({ title: newTitle })
-            .eq('id', params.id)
     }
 
     const deletePage = async () => {
@@ -96,7 +111,7 @@ export default function PageDetail() {
     if (!page) return <div className="p-8">Page not found</div>
 
     return (
-        <div className="max-w-3xl mx-auto space-y-8 pb-20">
+        <div className="max-w-5xl mx-auto space-y-4 pb-20">
             <div className="flex items-center gap-4 group">
                 <Input
                     className="text-4xl font-bold border-none shadow-none focus-visible:ring-0 px-0 h-auto"

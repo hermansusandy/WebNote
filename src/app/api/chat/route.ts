@@ -45,7 +45,7 @@ export async function POST(req: Request) {
 
     try {
         const result = streamText({
-            model: vertex('gemini-1.5-flash-001'),
+            model: vertex('gemini-1.5-flash'),
             messages,
             maxSteps: 5,
             system: `You are a helpful AI assistant for a note - taking app called WebNote.

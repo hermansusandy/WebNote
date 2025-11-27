@@ -49,8 +49,36 @@ export function Sidebar({ className }: SidebarProps) {
             else setPages([])
         })
 
-        return () => subscription.unsubscribe()
-    }, [])
+        // Realtime subscription for pages
+        const channel = supabase
+            .channel('sidebar_pages_changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'pages'
+                },
+                (payload) => {
+                    console.log('Realtime update:', payload)
+                    // Refresh pages when any change happens to pages table
+                    // We could be more granular, but fetching all is safe for now
+                    if (user) fetchPages(user.id)
+                    else {
+                        // If user state isn't set yet, try to get it from session or just wait
+                        supabase.auth.getUser().then(({ data: { user } }) => {
+                            if (user) fetchPages(user.id)
+                        })
+                    }
+                }
+            )
+            .subscribe()
+
+        return () => {
+            subscription.unsubscribe()
+            supabase.removeChannel(channel)
+        }
+    }, [user?.id])
 
     const fetchPages = async (userId: string) => {
         const { data } = await supabase

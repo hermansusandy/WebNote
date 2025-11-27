@@ -198,10 +198,50 @@ const Commands = Extension.create({
 export const getSuggestionItems = ({ query }: { query: string }) => {
     return [
         {
-            title: 'AI Meeting Notes',
+            title: 'Ask AI',
             section: 'Suggested',
             icon: Sparkles,
             badge: 'Beta',
+            command: async ({ editor, range }: { editor: Editor; range: Range }) => {
+                const prompt = window.prompt('What would you like the AI to write?')
+                if (!prompt) return
+
+                // Delete the slash command
+                editor.chain().focus().deleteRange(range).run()
+
+                // Insert a placeholder or loading state if desired, 
+                // but for now we'll just stream into the current position.
+
+                try {
+                    const response = await fetch('/api/generate', {
+                        method: 'POST',
+                        body: JSON.stringify({ prompt }),
+                    })
+
+                    if (!response.ok) throw new Error('Failed to generate text')
+                    if (!response.body) return
+
+                    const reader = response.body.getReader()
+                    const decoder = new TextDecoder()
+                    let done = false
+
+                    while (!done) {
+                        const { value, done: doneReading } = await reader.read()
+                        done = doneReading
+                        const chunkValue = decoder.decode(value)
+                        editor.chain().focus().insertContent(chunkValue).run()
+                    }
+                } catch (error) {
+                    console.error('AI generation error:', error)
+                    window.alert('Failed to generate text. Please try again.')
+                }
+            },
+        },
+        {
+            title: 'Meeting Notes',
+            section: 'Suggested',
+            icon: Sparkles,
+            badge: 'Template',
             command: ({ editor, range }: { editor: Editor; range: Range }) => {
                 editor.chain().focus().deleteRange(range).insertContent([
                     {
