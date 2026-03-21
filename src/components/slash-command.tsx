@@ -19,9 +19,11 @@ import {
 } from 'lucide-react'
 import { Editor } from '@tiptap/core'
 
+type IconComponent = React.ComponentType<{ className?: string }>
+
 interface CommandItemProps {
     title: string
-    icon: any
+    icon: IconComponent
     section: string
     badge?: string
     command: (props: { editor: Editor; range: Range }) => void
@@ -121,7 +123,7 @@ const CommandList = ({ items, command }: CommandListProps) => {
 
 const renderItems = () => {
     let component: ReactRenderer | null = null
-    let popup: Instance[] | null = null
+    let popup: Instance | null = null
 
     return {
         onStart: (props: SuggestionProps) => {
@@ -134,9 +136,8 @@ const renderItems = () => {
                 return
             }
 
-            // @ts-ignore
-            popup = tippy('body', {
-                getReferenceClientRect: props.clientRect as any,
+            popup = tippy(document.body as Element, {
+                getReferenceClientRect: () => props.clientRect?.() ?? new DOMRect(0, 0, 0, 0),
                 appendTo: () => document.body,
                 content: component.element,
                 showOnCreate: true,
@@ -152,20 +153,18 @@ const renderItems = () => {
                 return
             }
 
-            popup?.[0].setProps({
-                getReferenceClientRect: props.clientRect as any,
-            })
+            popup?.setProps({ getReferenceClientRect: () => props.clientRect?.() ?? new DOMRect(0, 0, 0, 0) })
         },
-        onKeyDown: (props: any) => {
+        onKeyDown: (props: { event: KeyboardEvent }) => {
             if (props.event.key === 'Escape') {
-                popup?.[0].hide()
+                popup?.hide()
                 return true
             }
-            // @ts-ignore
-            return component?.ref?.onKeyDown(props)
+            const ref = component?.ref as unknown as { onKeyDown?: (p: { event: KeyboardEvent }) => boolean } | null
+            return ref?.onKeyDown?.(props) ?? false
         },
         onExit: () => {
-            popup?.[0].destroy()
+            popup?.destroy()
             component?.destroy()
         },
     }
@@ -178,7 +177,7 @@ const Commands = Extension.create({
         return {
             suggestion: {
                 char: '/',
-                command: ({ editor, range, props }: { editor: Editor; range: Range; props: any }) => {
+                command: ({ editor, range, props }: { editor: Editor; range: Range; props: CommandItemProps }) => {
                     props.command({ editor, range })
                 },
             },

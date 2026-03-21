@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,13 +19,15 @@ export default function LoginPage() {
         setLoading(true)
         setError(null)
 
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ email, password }),
         })
 
-        if (error) {
-            setError(error.message)
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}))
+            setError(data?.error || 'Login failed')
             setLoading(false)
         } else {
             router.push("/dashboard")
@@ -37,29 +38,19 @@ export default function LoginPage() {
     const handleSignUp = async () => {
         setLoading(true)
         setError(null)
-        const { error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: {
-                    full_name: email.split('@')[0]
-                }
-            }
+        const res = await fetch('/api/auth/signup', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ email, password }),
         })
 
-        if (error) {
-            setError(error.message)
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}))
+            setError(data?.error || 'Sign up failed')
             setLoading(false)
         } else {
-            setError("Check your email for the confirmation link (or if using local/testing, you might be auto-confirmed).")
-            setLoading(false)
-            // For local dev with email confirmation disabled, we might be logged in.
-            // Check session
-            const { data: { session } } = await supabase.auth.getSession()
-            if (session) {
-                router.push("/dashboard")
-                router.refresh()
-            }
+            router.push("/dashboard")
+            router.refresh()
         }
     }
 

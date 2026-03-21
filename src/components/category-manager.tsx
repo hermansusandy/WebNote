@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Plus, Trash, Pencil, Check, X } from "lucide-react"
-import { supabase } from "@/lib/supabase/client"
 import { toast } from "sonner"
 
 interface CategoryManagerProps {
@@ -21,36 +20,29 @@ export function CategoryManager({ tableName, title, onUpdate }: CategoryManagerP
     const [editingName, setEditingName] = useState("")
     const [loading, setLoading] = useState(false)
 
+    const fetchItems = async () => {
+        const res = await fetch(`/api/categories?table=${encodeURIComponent(tableName)}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (data?.items) setItems(data.items)
+    }
+
     useEffect(() => {
         fetchItems()
     }, [tableName])
-
-    const fetchItems = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
-        const { data } = await supabase
-            .from(tableName)
-            .select('*')
-            .eq('user_id', user.id)
-            .order('name')
-
-        if (data) setItems(data)
-    }
 
     const handleAdd = async () => {
         if (!newItemName.trim()) return
         setLoading(true)
 
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
+        const res = await fetch('/api/categories', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ table: tableName, name: newItemName.trim() }),
+        })
 
-        const { error } = await supabase
-            .from(tableName)
-            .insert({ user_id: user.id, name: newItemName.trim() })
-
-        if (error) {
-            toast.error(`Failed to add item: ${error.message}`)
+        if (!res.ok) {
+            toast.error('Failed to add item')
         } else {
             toast.success("Item added successfully")
             setNewItemName("")
@@ -63,13 +55,14 @@ export function CategoryManager({ tableName, title, onUpdate }: CategoryManagerP
     const handleUpdate = async (id: string) => {
         if (!editingName.trim()) return
 
-        const { error } = await supabase
-            .from(tableName)
-            .update({ name: editingName.trim() })
-            .eq('id', id)
+        const res = await fetch('/api/categories', {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ table: tableName, id, name: editingName.trim() }),
+        })
 
-        if (error) {
-            toast.error(`Failed to update item: ${error.message}`)
+        if (!res.ok) {
+            toast.error('Failed to update item')
         } else {
             toast.success("Item updated successfully")
             setEditingId(null)
@@ -81,13 +74,14 @@ export function CategoryManager({ tableName, title, onUpdate }: CategoryManagerP
     const handleDelete = async (id: string) => {
         if (!confirm("Are you sure?")) return
 
-        const { error } = await supabase
-            .from(tableName)
-            .delete()
-            .eq('id', id)
+        const res = await fetch('/api/categories', {
+            method: 'DELETE',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ table: tableName, id }),
+        })
 
-        if (error) {
-            toast.error(`Failed to delete item: ${error.message}`)
+        if (!res.ok) {
+            toast.error('Failed to delete item')
         } else {
             toast.success("Item deleted successfully")
             fetchItems()

@@ -17,7 +17,6 @@ interface EditorBlockMenuProps {
 
 export const EditorBlockMenu = ({ editor }: EditorBlockMenuProps) => {
     const [menuPosition, setMenuPosition] = useState<number | null>(null)
-    const [activeNode, setActiveNode] = useState<any>(null)
 
     const updateMenuPosition = useCallback(() => {
         if (!editor) return
@@ -55,14 +54,16 @@ export const EditorBlockMenu = ({ editor }: EditorBlockMenuProps) => {
         editor.on('focus', handleUpdate)
         editor.on('blur', handleUpdate)
 
-        // Initial update
-        updateMenuPosition()
+        const rafId = requestAnimationFrame(() => {
+            updateMenuPosition()
+        })
 
         return () => {
             editor.off('selectionUpdate', handleUpdate)
             editor.off('update', handleUpdate)
             editor.off('focus', handleUpdate)
             editor.off('blur', handleUpdate)
+            cancelAnimationFrame(rafId)
         }
     }, [editor, updateMenuPosition])
 

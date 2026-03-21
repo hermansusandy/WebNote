@@ -1,6 +1,7 @@
 "use client"
 
 import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react'
+import type { JSONContent } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import TaskList from '@tiptap/extension-task-list'
@@ -18,8 +19,8 @@ import { Bold, Italic, Strikethrough, Code, AlignLeft, AlignCenter, AlignRight }
 import { Toggle } from "@/components/ui/toggle"
 
 interface EditorProps {
-    content: any
-    onChange: (content: any) => void
+    content: JSONContent | null
+    onChange: (content: JSONContent) => void
     editable?: boolean
 }
 

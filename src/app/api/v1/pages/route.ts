@@ -1,5 +1,51 @@
-import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { dbQuery } from '@/lib/db'
+
+function markdownToTiptapDoc(markdown: string) {
+    const lines = markdown.split(/\r?\n/)
+    const nodes: any[] = []
+    let taskItems: any[] = []
+
+    const flushTasks = () => {
+        if (!taskItems.length) return
+        nodes.push({ type: 'taskList', content: taskItems })
+        taskItems = []
+    }
+
+    for (const rawLine of lines) {
+        const line = rawLine.replace(/\t/g, '    ')
+        const checkboxMatch = line.match(/^\s*-\s*\[([ xX])\]\s*(.*)$/)
+
+        if (checkboxMatch) {
+            const checked = checkboxMatch[1].toLowerCase() === 'x'
+            const text = checkboxMatch[2] || ''
+            taskItems.push({
+                type: 'taskItem',
+                attrs: { checked },
+                content: [
+                    text
+                        ? { type: 'paragraph', content: [{ type: 'text', text }] }
+                        : { type: 'paragraph' },
+                ],
+            })
+            continue
+        }
+
+        if (!line.trim()) {
+            flushTasks()
+            if (nodes.length && nodes[nodes.length - 1]?.type === 'paragraph') continue
+            nodes.push({ type: 'paragraph' })
+            continue
+        }
+
+        flushTasks()
+        nodes.push({ type: 'paragraph', content: [{ type: 'text', text: line }] })
+    }
+
+    flushTasks()
+
+    return { type: 'doc', content: nodes.length ? nodes : [{ type: 'paragraph' }] }
+}
 
 export async function GET(request: Request) {
     const apiKey = request.headers.get('x-api-key')
@@ -7,20 +53,8 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    const supabase = createClient(supabaseUrl, supabaseKey)
-
-    const { data, error } = await supabase
-        .from('pages')
-        .select('*')
-        .order('updated_at', { ascending: false })
-
-    if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    return NextResponse.json(data)
+    const rows = await dbQuery<any>('select * from pages order by updated_at desc')
+    return NextResponse.json(rows)
 }
 
 export async function POST(request: Request) {
@@ -36,21 +70,20 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    const pages = await dbQuery<{ id: string }>(
+        'insert into pages (user_id, title, updated_at) values ($1, $2, now()) returning id',
+        [user_id, title]
+    )
+    const pageId = pages[0]?.id
+    if (!pageId) return NextResponse.json({ error: 'Failed to create page' }, { status: 500 })
 
-    const { data, error } = await supabase
-        .from('pages')
-        .insert([
-            { title, content: content || '', user_id, updated_at: new Date().toISOString() }
-        ])
-        .select()
-        .single()
-
-    if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    if (typeof content === 'string' && content.length) {
+        const doc = markdownToTiptapDoc(content)
+        await dbQuery(
+            "insert into page_blocks (page_id, user_id, type, content, updated_at) values ($1, $2, 'tiptap-doc', $3::jsonb, now())",
+            [pageId, user_id, JSON.stringify(doc)]
+        )
     }
 
-    return NextResponse.json(data)
+    return NextResponse.json({ id: pageId, user_id, title, content: content || '' }, { status: 201 })
 }

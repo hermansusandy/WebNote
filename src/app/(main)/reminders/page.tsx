@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Plus, Trash, Calendar as CalendarIcon, Filter, X } from "lucide-react"
@@ -33,58 +32,45 @@ export default function RemindersPage() {
     const [priorityFilter, setPriorityFilter] = useState<string>("All")
     const [search, setSearch] = useState("")
 
+    const fetchCategories = async () => {
+        const res = await fetch(`/api/categories?table=reminder_categories`)
+        if (!res.ok) return
+        const data = await res.json().catch(() => ({}))
+        if (data?.items) setCategories(data.items)
+    }
+
+    const fetchItems = async () => {
+        const res = await fetch('/api/reminders')
+        if (!res.ok) {
+            setLoading(false)
+            return
+        }
+        const data = await res.json().catch(() => ({}))
+        if (data?.items) setItems(data.items)
+        setLoading(false)
+    }
+
     useEffect(() => {
         fetchItems()
         fetchCategories()
     }, [])
 
-    const fetchCategories = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
-        const { data } = await supabase
-            .from('reminder_categories')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('name')
-
-        if (data) setCategories(data)
-    }
-
-    const fetchItems = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
-        const { data } = await supabase
-            .from('reminders')
-            .select(`
-                *,
-                category:reminder_categories(id, name, color)
-            `)
-            .eq('user_id', user.id)
-            .order('due_at', { ascending: true })
-
-        if (data) setItems(data)
-        setLoading(false)
-    }
-
     const handleCreate = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
         // Get default category if exists
-        let categoryId = categories.length > 0 ? categories[0].id : null
+        const categoryId = categories.length > 0 ? categories[0].id : null
 
-        const { data } = await supabase.from('reminders').insert({
-            user_id: user.id,
-            title: 'New Reminder',
-            due_at: new Date().toISOString(),
-            priority: 'Medium',
-            category_id: categoryId
-        }).select(`
-            *,
-            category:reminder_categories(id, name, color)
-        `).single()
+        const res = await fetch('/api/reminders', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                title: 'New Reminder',
+                due_at: new Date().toISOString(),
+                priority: 'Medium',
+                category_id: categoryId,
+            }),
+        })
+        const json = await res.json().catch(() => ({}))
+        const data = json?.item
 
         if (data) {
             setItems([...items, data].sort((a, b) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime()))
@@ -102,7 +88,11 @@ export default function RemindersPage() {
             }
             return item
         }))
-        await supabase.from('reminders').update(updates).eq('id', id)
+        await fetch(`/api/reminders/${id}`, {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(updates),
+        })
     }
 
     const handleDelete = async (id: string) => {
@@ -113,7 +103,7 @@ export default function RemindersPage() {
             next.delete(id)
             return next
         })
-        await supabase.from('reminders').delete().eq('id', id)
+        await fetch(`/api/reminders/${id}`, { method: 'DELETE' })
     }
 
     const toggleSelection = (id: string) => {
@@ -138,7 +128,11 @@ export default function RemindersPage() {
         const ids = Array.from(selectedItems)
         setItems(items.filter(item => !ids.includes(item.id)))
         setSelectedItems(new Set())
-        await supabase.from('reminders').delete().in('id', ids)
+        await fetch('/api/reminders', {
+            method: 'DELETE',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ ids }),
+        })
     }
 
     const filteredItems = items.filter(item => {

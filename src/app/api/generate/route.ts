@@ -1,4 +1,4 @@
-import { vertex } from '@ai-sdk/google-vertex'
+import { google } from '@ai-sdk/google'
 import { streamText } from 'ai'
 
 // Allow streaming responses up to 30 seconds
@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const { prompt } = await req.json()
 
     const result = streamText({
-        model: vertex('gemini-1.5-flash'),
+        model: google('gemini-2.5-flash'),
         messages: [
             {
                 role: 'system',

@@ -4,14 +4,12 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
     LayoutDashboard,
     FileText,
     GraduationCap,
     Bell,
     Package,
-    Settings,
     Plus,
     ChevronRight,
     ChevronDown,
@@ -21,75 +19,41 @@ import {
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useRouter } from "next/navigation"
 import * as React from "react"
-import { supabase } from "@/lib/supabase/client"
 import { toast } from "sonner"
 
-interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> { }
+type SidebarProps = React.HTMLAttributes<HTMLDivElement>
+
+type SidebarUser = { id: string; email: string }
+type SidebarPage = { id: string; title: string; icon: string | null }
 
 export function Sidebar({ className }: SidebarProps) {
     const pathname = usePathname()
     const router = useRouter()
-    const [pages, setPages] = React.useState<any[]>([])
-    const [user, setUser] = React.useState<any>(null)
+    const [pages, setPages] = React.useState<SidebarPage[]>([])
+    const [user, setUser] = React.useState<SidebarUser | null>(null)
     const [isQuickActionsOpen, setIsQuickActionsOpen] = React.useState(true)
     const [isPagesOpen, setIsPagesOpen] = React.useState(true)
 
-    React.useEffect(() => {
-        const getUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            console.log("Sidebar User ID:", user?.id)
-            setUser(user)
-            if (user) fetchPages(user.id)
+    const fetchPages = async () => {
+        const res = await fetch('/api/pages')
+        if (res.status === 401) {
+            setPages([])
+            return
         }
-        getUser()
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user)
-            if (session?.user) fetchPages(session.user.id)
-            else setPages([])
-        })
-
-        // Realtime subscription for pages
-        const channel = supabase
-            .channel('sidebar_pages_changes')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'pages'
-                },
-                (payload) => {
-                    console.log('Realtime update:', payload)
-                    // Refresh pages when any change happens to pages table
-                    // We could be more granular, but fetching all is safe for now
-                    if (user) fetchPages(user.id)
-                    else {
-                        // If user state isn't set yet, try to get it from session or just wait
-                        supabase.auth.getUser().then(({ data: { user } }) => {
-                            if (user) fetchPages(user.id)
-                        })
-                    }
-                }
-            )
-            .subscribe()
-
-        return () => {
-            subscription.unsubscribe()
-            supabase.removeChannel(channel)
-        }
-    }, [user?.id])
-
-    const fetchPages = async (userId: string) => {
-        const { data } = await supabase
-            .from('pages')
-            .select('id, title, icon')
-            .eq('user_id', userId)
-            .is('parent_id', null)
-            .order('sort_order', { ascending: true })
-
-        if (data) setPages(data)
+        const data = await res.json().catch(() => ({}))
+        if (data?.pages) setPages(data.pages)
     }
+
+    React.useEffect(() => {
+        const load = async () => {
+            const res = await fetch('/api/auth/me')
+            const data = await res.json().catch(() => ({}))
+            setUser(data?.user ?? null)
+            if (data?.user) fetchPages()
+            else setPages([])
+        }
+        load()
+    }, [])
 
     const handleCreatePage = async () => {
         if (!user) {
@@ -97,18 +61,15 @@ export function Sidebar({ className }: SidebarProps) {
             return
         }
 
-        const { data, error } = await supabase
-            .from('pages')
-            .insert({
-                user_id: user.id,
-                title: 'Untitled Page'
-            })
-            .select()
-            .single()
-
-        if (data) {
-            fetchPages(user.id)
-            router.push(`/pages/${data.id}`)
+        const res = await fetch('/api/pages', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ title: 'Untitled Page' }),
+        })
+        const json = await res.json().catch(() => ({}))
+        if (res.ok && json?.page?.id) {
+            fetchPages()
+            router.push(`/pages/${json.page.id}`)
             toast.success("Page created successfully")
         }
     }
@@ -118,17 +79,14 @@ export function Sidebar({ className }: SidebarProps) {
             router.push('/login')
             return
         }
-        // For MVP, just redirect to learning page with a query param or let the page handle it
-        // But here we can create a default one
-        const { data } = await supabase.from('learning_titles').insert({
-            user_id: user.id,
-            title: 'New Learning Goal',
-            priority: 'Medium',
-            status: 'Planned'
-        }).select().single()
-
-        if (data) {
-            router.push(`/learning?new=${data.id}`)
+        const res = await fetch('/api/learning', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ title: 'New Learning Goal', priority: 'Medium', status: 'Planned' }),
+        })
+        const json = await res.json().catch(() => ({}))
+        if (res.ok && json?.item?.id) {
+            router.push(`/learning?new=${json.item.id}`)
             toast.success("Learning goal created successfully")
         }
     }
@@ -138,14 +96,13 @@ export function Sidebar({ className }: SidebarProps) {
             router.push('/login')
             return
         }
-        const { data } = await supabase.from('reminders').insert({
-            user_id: user.id,
-            title: 'New Reminder',
-            due_at: new Date().toISOString()
-        }).select().single()
-
-        if (data) {
-            router.push(`/reminders`)
+        const res = await fetch('/api/reminders', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ title: 'New Reminder', due_at: new Date().toISOString(), priority: 'Medium' }),
+        })
+        if (res.ok) {
+            router.push('/reminders')
             toast.success("Reminder created successfully")
         }
     }
@@ -225,8 +182,8 @@ export function Sidebar({ className }: SidebarProps) {
                                                                     e.stopPropagation()
                                                                     if (!confirm("Delete this page?")) return
 
-                                                                    const { error } = await supabase.from('pages').delete().eq('id', page.id)
-                                                                    if (error) {
+                                                                    const res = await fetch(`/api/pages/${page.id}`, { method: 'DELETE' })
+                                                                    if (!res.ok) {
                                                                         toast.error("Failed to delete page")
                                                                         return
                                                                     }
@@ -295,7 +252,7 @@ export function Sidebar({ className }: SidebarProps) {
                             {user.email}
                         </div>
                         <Button variant="outline" className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50" onClick={async () => {
-                            await supabase.auth.signOut()
+                            await fetch('/api/auth/logout', { method: 'POST' })
                             router.push('/login')
                         }}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-4 w-4"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>

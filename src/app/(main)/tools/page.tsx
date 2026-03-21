@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -51,30 +50,27 @@ export default function ToolsPage() {
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
 
     const fetchCategories = useCallback(async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-        const { data } = await supabase.from('web_url_categories').select('*').eq('user_id', user.id).order('name')
-        if (data) setCategories(data)
+        const res = await fetch(`/api/categories?table=web_url_categories`)
+        if (!res.ok) return
+        const data = await res.json().catch(() => ({}))
+        if (data?.items) setCategories(data.items)
     }, [])
 
     const fetchSubCategories = useCallback(async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-        const { data } = await supabase.from('web_url_sub_categories').select('*').eq('user_id', user.id).order('name')
-        if (data) setSubCategories(data)
+        const res = await fetch(`/api/categories?table=web_url_sub_categories`)
+        if (!res.ok) return
+        const data = await res.json().catch(() => ({}))
+        if (data?.items) setSubCategories(data.items)
     }, [])
 
     const fetchItems = useCallback(async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
-        const { data } = await supabase
-            .from('web_urls')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-
-        if (data) setItems(data)
+        const res = await fetch('/api/tools')
+        if (!res.ok) {
+            setLoading(false)
+            return
+        }
+        const data = await res.json().catch(() => ({}))
+        if (data?.items) setItems(data.items)
         setLoading(false)
     }, [])
 
@@ -85,21 +81,21 @@ export default function ToolsPage() {
     }, [fetchItems, fetchCategories, fetchSubCategories])
 
     const handleCreate = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
-        const { data, error } = await supabase.from('web_urls').insert({
-            user_id: user.id,
-            name: 'New Web URL',
-            url: 'https://example.com',
-            category: categories[0]?.name || 'General',
-            sub_category: subCategories[0]?.name || null,
-            remarks: ''
-        }).select().single()
-
-        if (error) {
-            console.error("Error creating URL:", error)
-            toast.error(`Failed to create URL: ${error.message} `)
+        const res = await fetch('/api/tools', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                name: 'New Web URL',
+                url: 'https://example.com',
+                category: categories[0]?.name || 'General',
+                sub_category: subCategories[0]?.name || null,
+                remarks: '',
+            }),
+        })
+        const json = await res.json().catch(() => ({}))
+        const data = json?.item
+        if (!res.ok) {
+            toast.error('Failed to create URL')
             return
         }
 
@@ -119,7 +115,11 @@ export default function ToolsPage() {
             return item
         }))
 
-        await supabase.from('web_urls').update(updates).eq('id', id)
+        await fetch(`/api/tools/${id}`, {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(updates),
+        })
     }
 
     const handleDelete = async (id: string) => {
@@ -130,7 +130,7 @@ export default function ToolsPage() {
             next.delete(id)
             return next
         })
-        await supabase.from('web_urls').delete().eq('id', id)
+        await fetch(`/api/tools/${id}`, { method: 'DELETE' })
         toast.success("URL deleted successfully")
     }
 

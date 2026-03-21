@@ -3,32 +3,26 @@
 import { Button } from "@/components/ui/button"
 import { Plus, FileText } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase/client"
 import { toast } from "sonner"
 
 export default function PagesPage() {
     const router = useRouter()
 
     const handleCreatePage = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
+        const res = await fetch('/api/pages', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ title: 'Untitled Page' }),
+        })
+        if (res.status === 401) {
             router.push('/login')
             return
         }
-
-        const { data, error } = await supabase
-            .from('pages')
-            .insert({
-                user_id: user.id,
-                title: 'Untitled Page'
-            })
-            .select()
-            .single()
-
-        if (data) {
-            router.push(`/pages/${data.id}`)
+        const json = await res.json().catch(() => ({}))
+        if (res.ok && json?.page?.id) {
+            router.push(`/pages/${json.page.id}`)
             toast.success("Page created successfully")
-        } else if (error) {
+        } else {
             toast.error("Failed to create page")
         }
     }

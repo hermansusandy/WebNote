@@ -2,9 +2,13 @@ const { Client } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
-const connectionString = 'postgresql://postgres:%40caspo2006%40@db.tjirzgjhnnneetrdorii.supabase.co:5432/postgres';
+const connectionString = process.env.DATABASE_URL;
 
 async function migrate() {
+    if (!connectionString) {
+        throw new Error('Missing DATABASE_URL env var');
+    }
+
     const client = new Client({
         connectionString,
     });

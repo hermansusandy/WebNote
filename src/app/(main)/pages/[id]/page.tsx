@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase/client"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Loader2, Trash } from "lucide-react"
@@ -19,29 +18,22 @@ export default function PageDetail() {
 
     useEffect(() => {
         const fetchPageAndContent = async () => {
-            const { data: pageData, error: pageError } = await supabase
-                .from('pages')
-                .select('*')
-                .eq('id', params.id)
-                .single()
-
-            if (pageData) {
-                setPage(pageData)
-                setTitle(pageData.title)
+            const res = await fetch(`/api/pages/${params.id}`)
+            if (res.status === 401) {
+                router.push('/login')
+                return
             }
-
-            // Fetch content
-            const { data: blockData } = await supabase
-                .from('page_blocks')
-                .select('*')
-                .eq('page_id', params.id)
-                .eq('type', 'tiptap-doc')
-                .single()
-
-            if (blockData) {
-                setBlockId(blockData.id)
-                setContent(blockData.content)
+            if (!res.ok) {
+                setLoading(false)
+                return
             }
+            const data = await res.json()
+            if (data?.page) {
+                setPage(data.page)
+                setTitle(data.page.title)
+            }
+            setBlockId(data?.blockId ?? null)
+            setContent(data?.content ?? null)
 
             setLoading(false)
         }
@@ -54,15 +46,12 @@ export default function PageDetail() {
         if (title === page?.title) return
 
         const timer = setTimeout(async () => {
-            console.log("Saving title:", title)
-            const { error } = await supabase
-                .from('pages')
-                .update({ title: title })
-                .eq('id', params.id)
-
-            if (!error) {
-                setPage((prev: any) => ({ ...prev, title }))
-            }
+            const res = await fetch(`/api/pages/${params.id}`, {
+                method: 'PATCH',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ title }),
+            })
+            if (res.ok) setPage((prev: any) => ({ ...prev, title }))
         }, 1000)
 
         return () => clearTimeout(timer)
@@ -74,36 +63,21 @@ export default function PageDetail() {
 
     const deletePage = async () => {
         if (confirm('Are you sure you want to delete this page?')) {
-            await supabase.from('pages').delete().eq('id', params.id)
+            await fetch(`/api/pages/${params.id}`, { method: 'DELETE' })
             router.push('/pages')
             router.refresh()
         }
     }
 
     const handleContentChange = async (newContent: any) => {
-        // Debouncing would be good here, but for MVP direct update is okay-ish or use a timeout
-        // Let's just save.
-        const user = (await supabase.auth.getUser()).data.user
-        if (!user) return
-
-        if (blockId) {
-            await supabase
-                .from('page_blocks')
-                .update({ content: newContent, updated_at: new Date().toISOString() })
-                .eq('id', blockId)
-        } else {
-            const { data } = await supabase
-                .from('page_blocks')
-                .insert({
-                    page_id: params.id,
-                    user_id: user.id,
-                    type: 'tiptap-doc',
-                    content: newContent
-                })
-                .select()
-                .single()
-
-            if (data) setBlockId(data.id)
+        const res = await fetch(`/api/pages/${params.id}/content`, {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ content: newContent }),
+        })
+        if (res.ok) {
+            const data = await res.json().catch(() => ({}))
+            if (data?.blockId) setBlockId(data.blockId)
         }
     }
 

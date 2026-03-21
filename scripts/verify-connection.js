@@ -1,25 +1,29 @@
-const { createClient } = require('@supabase/supabase-js');
+const { Client } = require('pg');
 
-const supabaseUrl = 'https://tjirzgjhnnneetrdorii.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqaXJ6Z2pobm5uZWV0cmRvcmlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMzU1MjYsImV4cCI6MjA3OTYxMTUyNn0.jrqvkEV9Q17Iytn5Riw_k09HqM5_gncGRd8yQdFJ7S4';
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error('Missing DATABASE_URL env var');
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const client = new Client({ connectionString });
 
 async function verify() {
-    console.log('Verifying connection to Supabase...');
+    console.log('Verifying connection to Postgres...');
+    await client.connect();
 
-    // Try to select from a table that should exist (e.g., profiles or pages)
-    // Even if empty, it should not return a 404 or connection error if the table exists.
-    const { data, error } = await supabase.from('pages').select('count', { count: 'exact', head: true });
+    const result = await client.query(
+        `select 1
+         from information_schema.tables
+         where table_schema = 'public' and table_name = 'pages'
+         limit 1`
+    );
 
-    if (error) {
-        console.error('Connection failed or table not found:', error.message);
-        if (error.code === 'PGRST204') {
-            console.error('Hint: The table "pages" was not found. Did you run the migration SQL?');
-        }
-    } else {
+    if (result.rowCount === 1) {
         console.log('Connection successful! Table "pages" exists.');
+    } else {
+        console.error('Connected, but table "pages" was not found. Did you run migrations?');
+        process.exitCode = 2;
     }
+
+    await client.end();
 }
 
 verify();

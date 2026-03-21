@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Plus, Search, Trash, ExternalLink, Pencil, Check, X, Filter, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
@@ -31,75 +30,59 @@ export default function YoutubePage() {
     const [categoryFilter, setCategoryFilter] = useState<string>("All")
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
 
+    const fetchCategories = async () => {
+        const res = await fetch(`/api/categories?table=youtube_categories`)
+        if (!res.ok) return
+        const data = await res.json().catch(() => ({}))
+        if (data?.items) setCategories(data.items)
+    }
+
+    const fetchItems = async () => {
+        const res = await fetch('/api/youtube')
+        if (!res.ok) {
+            setLoading(false)
+            return
+        }
+        const data = await res.json().catch(() => ({}))
+        if (data?.items) setItems(data.items)
+        setLoading(false)
+    }
+
     useEffect(() => {
         fetchItems()
         fetchCategories()
     }, [])
 
-    const fetchCategories = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
-        const { data } = await supabase
-            .from('youtube_categories')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('name')
-
-        if (data) setCategories(data)
-    }
-
-    const fetchItems = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
-        const { data } = await supabase
-            .from('youtube_items')
-            .select(`
-                *,
-                category:youtube_categories(id, name, color)
-            `)
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-
-        if (data) setItems(data)
-        setLoading(false)
-    }
-
     const handleCreate = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
         // Get default category if exists
         let categoryId = categories.length > 0 ? categories[0].id : null
 
         // If no categories exist, create a default "General" one
         if (!categoryId) {
-            const { data: newCategory } = await supabase
-                .from('youtube_categories')
-                .insert({ user_id: user.id, name: 'General' })
-                .select()
-                .single()
-
-            if (newCategory) {
-                setCategories([newCategory])
-                categoryId = newCategory.id
-            } else {
-                console.error("Failed to create default category")
-                return
-            }
+            const catRes = await fetch('/api/categories', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ table: 'youtube_categories', name: 'General', color: null }),
+            })
+            const catJson = await catRes.json().catch(() => ({}))
+            if (catRes.ok && catJson?.item?.id) {
+                setCategories([catJson.item])
+                categoryId = catJson.item.id
+            } else return
         }
 
-        const { data } = await supabase.from('youtube_items').insert({
-            user_id: user.id,
-            category_id: categoryId,
-            name: 'New Youtube Video',
-            url: '',
-            note: ''
-        }).select(`
-            *,
-            category:youtube_categories(id, name, color)
-        `).single()
+        const res = await fetch('/api/youtube', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                category_id: categoryId,
+                name: 'New Youtube Video',
+                url: '',
+                note: '',
+            }),
+        })
+        const json = await res.json().catch(() => ({}))
+        const data = json?.item
 
         if (data) {
             setItems([data, ...items])
@@ -121,7 +104,11 @@ export default function YoutubePage() {
             return item
         }))
 
-        await supabase.from('youtube_items').update(updates).eq('id', id)
+        await fetch(`/api/youtube/${id}`, {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(updates),
+        })
     }
 
     const handleDelete = async (id: string) => {
@@ -132,7 +119,7 @@ export default function YoutubePage() {
             next.delete(id)
             return next
         })
-        await supabase.from('youtube_items').delete().eq('id', id)
+        await fetch(`/api/youtube/${id}`, { method: 'DELETE' })
         toast.success("Video deleted successfully")
     }
 
@@ -158,7 +145,11 @@ export default function YoutubePage() {
         const ids = Array.from(selectedItems)
         setItems(items.filter(item => !ids.includes(item.id)))
         setSelectedItems(new Set())
-        await supabase.from('youtube_items').delete().in('id', ids)
+        await fetch('/api/youtube', {
+            method: 'DELETE',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ ids }),
+        })
         toast.success("Selected videos deleted successfully")
     }
 

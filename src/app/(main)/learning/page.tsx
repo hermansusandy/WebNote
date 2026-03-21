@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -58,32 +57,20 @@ export default function LearningPage() {
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
 
     const fetchCategories = useCallback(async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
-        const { data } = await supabase
-            .from('learning_categories')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('name')
-
-        if (data) setCategories(data)
+        const res = await fetch(`/api/categories?table=learning_categories`)
+        if (!res.ok) return
+        const data = await res.json().catch(() => ({}))
+        if (data?.items) setCategories(data.items)
     }, [])
 
     const fetchItems = useCallback(async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
-        const { data } = await supabase
-            .from('learning_titles')
-            .select(`
-                *,
-                category:learning_categories(id, name, color)
-            `)
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-
-        if (data) setItems(data)
+        const res = await fetch('/api/learning')
+        if (!res.ok) {
+            setLoading(false)
+            return
+        }
+        const data = await res.json().catch(() => ({}))
+        if (data?.items) setItems(data.items)
         setLoading(false)
     }, [])
 
@@ -93,22 +80,21 @@ export default function LearningPage() {
     }, [fetchItems, fetchCategories])
 
     const handleCreate = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
         // Get default category if exists
-        let categoryId = categories.length > 0 ? categories[0].id : null
+        const categoryId = categories.length > 0 ? categories[0].id : null
 
-        const { data } = await supabase.from('learning_titles').insert({
-            user_id: user.id,
-            title: 'New Learning Goal',
-            priority: 'Medium',
-            status: 'Planned',
-            category_id: categoryId
-        }).select(`
-            *,
-            category:learning_categories(id, name, color)
-        `).single()
+        const res = await fetch('/api/learning', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                title: 'New Learning Goal',
+                priority: 'Medium',
+                status: 'Planned',
+                category_id: categoryId,
+            }),
+        })
+        const json = await res.json().catch(() => ({}))
+        const data = json?.item
 
         if (data) {
             setItems([data, ...items])
@@ -131,7 +117,11 @@ export default function LearningPage() {
             return item
         }))
 
-        await supabase.from('learning_titles').update(updates).eq('id', id)
+        await fetch(`/api/learning/${id}`, {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(updates),
+        })
     }
 
     const handleDelete = async (id: string) => {
@@ -142,7 +132,7 @@ export default function LearningPage() {
             next.delete(id)
             return next
         })
-        await supabase.from('learning_titles').delete().eq('id', id)
+        await fetch(`/api/learning/${id}`, { method: 'DELETE' })
         toast.success("Topic deleted successfully")
     }
 
@@ -168,10 +158,11 @@ export default function LearningPage() {
         setItems(items.map(item => ids.includes(item.id) ? { ...item, status } : item))
         setSelectedItems(new Set()) // Clear selection
 
-        await supabase
-            .from('learning_titles')
-            .update({ status })
-            .in('id', ids)
+        await fetch('/api/learning', {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ ids, updates: { status } }),
+        })
 
         toast.success("Status updated successfully")
     }

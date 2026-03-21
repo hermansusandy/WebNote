@@ -27,7 +27,7 @@ async function main() {
 
     try {
         const { text } = await generateText({
-            model: vertex('gemini-1.5-flash'),
+            model: vertex('gemini-1.5-flash-002'),
             prompt: 'Hello, are you working?',
         });
         console.log("Success! Response:", text);

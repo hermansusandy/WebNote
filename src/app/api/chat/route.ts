@@ -1,51 +1,69 @@
-import { vertex } from '@ai-sdk/google-vertex'
+import { google } from '@ai-sdk/google'
 // Force rebuild
 import { streamText, tool } from 'ai'
 import { z } from 'zod'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { requireUserId } from '@/lib/auth'
+import { dbQuery } from '@/lib/db'
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30
 
+function markdownToTiptapDoc(markdown: string) {
+    const lines = markdown.split(/\r?\n/)
+    const nodes: any[] = []
+    let taskItems: any[] = []
+
+    const flushTasks = () => {
+        if (!taskItems.length) return
+        nodes.push({ type: 'taskList', content: taskItems })
+        taskItems = []
+    }
+
+    for (const rawLine of lines) {
+        const line = rawLine.replace(/\t/g, '    ')
+        const checkboxMatch = line.match(/^\s*-\s*\[([ xX])\]\s*(.*)$/)
+
+        if (checkboxMatch) {
+            const checked = checkboxMatch[1].toLowerCase() === 'x'
+            const text = checkboxMatch[2] || ''
+            taskItems.push({
+                type: 'taskItem',
+                attrs: { checked },
+                content: [
+                    text
+                        ? { type: 'paragraph', content: [{ type: 'text', text }] }
+                        : { type: 'paragraph' },
+                ],
+            })
+            continue
+        }
+
+        if (!line.trim()) {
+            flushTasks()
+            if (nodes.length && nodes[nodes.length - 1]?.type === 'paragraph') continue
+            nodes.push({ type: 'paragraph' })
+            continue
+        }
+
+        flushTasks()
+        nodes.push({ type: 'paragraph', content: [{ type: 'text', text: line }] })
+    }
+
+    flushTasks()
+
+    return { type: 'doc', content: nodes.length ? nodes : [{ type: 'paragraph' }] }
+}
+
 export async function POST(req: Request) {
     const { messages } = await req.json()
     console.log("Chat API called with messages:", messages.length)
-
-    const cookieStore = await cookies()
-
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll()
-                },
-                setAll(cookiesToSet) {
-                    // In Next.js Route Handlers, the cookie store is read-only.
-                    // We cannot set cookies here. Middleware handles session refreshing.
-                },
-            },
-        }
-    )
-
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (user) {
-        console.log("Route User ID:", user.id)
-    }
-
-    if (!user) {
-        console.error("No authenticated user found")
-        // We can still proceed, but tools might fail if they need auth.
-        // Or we can return an error response.
-        // For now, let's let it proceed but tools will check for user.
-    }
+    const userId = await requireUserId()
+    if (userId) console.log("Route User ID:", userId)
+    else console.error("No authenticated user found")
 
     try {
         const result = streamText({
-            model: vertex('gemini-1.5-flash'),
+            model: google('gemini-2.5-flash'),
             messages,
             maxSteps: 5,
             system: `You are a helpful AI assistant for a note - taking app called WebNote.
@@ -75,23 +93,23 @@ export async function POST(req: Request) {
                         const { title, content } = args
                         console.log("Executing createPage tool:", title)
 
-                        if (!user) return 'Error: You must be logged in to create a page.'
+                        if (!userId) return 'Error: You must be logged in to create a page.'
 
-                        const { data, error } = await supabase
-                            .from('pages')
-                            .insert([
-                                { title, content, user_id: user.id, updated_at: new Date().toISOString() }
-                            ])
-                            .select()
-                            .single()
+                        const pages = await dbQuery<{ id: string }>(
+                            'insert into pages (user_id, title, updated_at) values ($1, $2, now()) returning id',
+                            [userId, title]
+                        )
+                        const pageId = pages[0]?.id
+                        if (!pageId) return 'Failed to create page.'
 
-                        if (error) {
-                            console.error("Error creating page:", error)
-                            return `Failed to create page: ${error.message} `
-                        }
+                        const doc = markdownToTiptapDoc(content)
+                        await dbQuery(
+                            "insert into page_blocks (page_id, user_id, type, content, updated_at) values ($1, $2, 'tiptap-doc', $3::jsonb, now())",
+                            [pageId, userId, JSON.stringify(doc)]
+                        )
 
-                        console.log("Page created successfully:", data.id)
-                        return `Page "${title}" created successfully with ID ${data.id}.`
+                        console.log("Page created successfully:", pageId)
+                        return `Page "${title}" created successfully with ID ${pageId}.`
                     },
                 } as any),
                 createLearning: tool({
@@ -104,18 +122,11 @@ export async function POST(req: Request) {
                     execute: async (args: any) => {
                         const { title, priority = 'Medium', status = 'Planned' } = args
                         console.log("Executing createLearning tool:", title)
-                        if (!user) return 'Error: You must be logged in to create a learning goal.'
-
-                        const { data, error } = await supabase
-                            .from('learning_titles')
-                            .insert([{ user_id: user.id, title, priority, status }])
-                            .select()
-                            .single()
-
-                        if (error) {
-                            console.error("Error creating learning goal:", error)
-                            return `Failed to create learning goal: ${error.message} `
-                        }
+                        if (!userId) return 'Error: You must be logged in to create a learning goal.'
+                        await dbQuery(
+                            'insert into learning_titles (user_id, title, priority, status, created_at, updated_at) values ($1, $2, $3, $4, now(), now())',
+                            [userId, title, priority, status]
+                        )
                         return `Learning goal "${title}" created successfully.`
                     },
                 } as any),
@@ -128,18 +139,11 @@ export async function POST(req: Request) {
                     execute: async (args: any) => {
                         const { title, due_at } = args
                         console.log("Executing createReminder tool:", title)
-                        if (!user) return 'Error: You must be logged in to create a reminder.'
-
-                        const { data, error } = await supabase
-                            .from('reminders')
-                            .insert([{ user_id: user.id, title, due_at: due_at }])
-                            .select()
-                            .single()
-
-                        if (error) {
-                            console.error("Error creating reminder:", error)
-                            return `Failed to create reminder: ${error.message} `
-                        }
+                        if (!userId) return 'Error: You must be logged in to create a reminder.'
+                        await dbQuery(
+                            'insert into reminders (user_id, title, due_at, created_at, updated_at) values ($1, $2, $3, now(), now())',
+                            [userId, title, due_at]
+                        )
                         return `Reminder "${title}" created successfully.`
                     },
                 } as any),
@@ -154,24 +158,11 @@ export async function POST(req: Request) {
                     execute: async (args: any) => {
                         const { name, url, category = 'General', remarks = '' } = args
                         console.log("Executing createWebUrl tool:", name)
-                        if (!user) return 'Error: You must be logged in to create a Web URL.'
-
-                        const { data, error } = await supabase
-                            .from('web_urls')
-                            .insert([{
-                                user_id: user.id,
-                                name,
-                                url,
-                                category,
-                                remarks
-                            }])
-                            .select()
-                            .single()
-
-                        if (error) {
-                            console.error("Error creating Web URL:", error)
-                            return `Failed to create Web URL: ${error.message} `
-                        }
+                        if (!userId) return 'Error: You must be logged in to create a Web URL.'
+                        await dbQuery(
+                            'insert into web_urls (user_id, name, url, category, remarks, created_at) values ($1, $2, $3, $4, $5, now())',
+                            [userId, name, url, category, remarks]
+                        )
                         return `Web URL "${name}" created successfully.`
                     },
                 } as any),
@@ -186,52 +177,26 @@ export async function POST(req: Request) {
                     execute: async (args: any) => {
                         const { name, url, categoryName = 'General', note = '' } = args
                         console.log("Executing createYoutubeVideo tool:", name)
-                        if (!user) return 'Error: You must be logged in to create a YouTube video.'
+                        if (!userId) return 'Error: You must be logged in to create a YouTube video.'
 
-                        // 1. Find or create category
-                        let categoryId: string | null = null
-
-                        const { data: existingCategories } = await supabase
-                            .from('youtube_categories')
-                            .select('id')
-                            .eq('user_id', user.id)
-                            .ilike('name', categoryName) // Case-insensitive match
-                            .limit(1)
-
-                        if (existingCategories && existingCategories.length > 0) {
-                            categoryId = existingCategories[0].id
-                        } else {
-                            // Create new category
-                            const { data: newCategory, error: catError } = await supabase
-                                .from('youtube_categories')
-                                .insert({ user_id: user.id, name: categoryName })
-                                .select('id')
-                                .single()
-
-                            if (catError) {
-                                console.error("Error creating YouTube category:", catError)
-                                return `Failed to create category "${categoryName}": ${catError.message} `
-                            }
-                            categoryId = newCategory.id
+                        const existing = await dbQuery<{ id: string }>(
+                            'select id from youtube_categories where user_id = $1 and lower(name) = lower($2) limit 1',
+                            [userId, categoryName]
+                        )
+                        let categoryId = existing[0]?.id
+                        if (!categoryId) {
+                            const inserted = await dbQuery<{ id: string }>(
+                                'insert into youtube_categories (user_id, name, created_at) values ($1, $2, now()) returning id',
+                                [userId, categoryName]
+                            )
+                            categoryId = inserted[0]?.id
                         }
+                        if (!categoryId) return `Failed to create category "${categoryName}".`
 
-                        // 2. Create video item
-                        const { data, error } = await supabase
-                            .from('youtube_items')
-                            .insert([{
-                                user_id: user.id,
-                                name,
-                                url,
-                                category_id: categoryId,
-                                note
-                            }])
-                            .select()
-                            .single()
-
-                        if (error) {
-                            console.error("Error creating YouTube video:", error)
-                            return `Failed to create YouTube video: ${error.message} `
-                        }
+                        await dbQuery(
+                            'insert into youtube_items (user_id, name, url, category_id, note, created_at, updated_at) values ($1, $2, $3, $4, $5, now(), now())',
+                            [userId, name, url, categoryId, note]
+                        )
                         return `YouTube video "${name}" created successfully in category "${categoryName}".`
                     },
                 } as any),
@@ -243,75 +208,63 @@ export async function POST(req: Request) {
                     execute: async (args: any) => {
                         const { query } = args
                         console.log("Executing search tool:", query)
-                        if (!user) return 'Error: You must be logged in to search.'
+                        if (!userId) return 'Error: You must be logged in to search.'
 
                         const results: any[] = []
 
-                        // Helper to search a table
-                        const searchTable = async (table: string, columns: string, type: string) => {
-                            const { data } = await supabase
-                                .from(table)
-                                .select(columns)
-                                .eq('user_id', user.id)
-                                .or(`title.ilike.% ${query}%, content.ilike.% ${query}% `)
-                                .limit(5)
-
-                            if (data) {
-                                data.forEach((item: any) => {
-                                    results.push({
-                                        id: item.id,
-                                        type,
-                                        title: item.title || item.name,
-                                        snippet: item.content ? item.content.substring(0, 100) : (item.url || item.note || '')
-                                    })
-                                })
-                            }
-                        }
-
                         // Search Pages
-                        const { data: pages } = await supabase
-                            .from('pages')
-                            .select('id, title, content')
-                            .eq('user_id', user.id)
-                            .or(`title.ilike.% ${query}%, content.ilike.% ${query}% `)
-                            .limit(3)
-                        pages?.forEach(p => results.push({ id: p.id, type: 'page', title: p.title, snippet: p.content?.substring(0, 100) }))
+                        const pages = await dbQuery<{ id: string; title: string; content_text: string }>(
+                            `select p.id, p.title, coalesce(pb.content::text, '') as content_text
+                             from pages p
+                             left join lateral (
+                                select content
+                                from page_blocks
+                                where page_id = p.id and user_id = p.user_id and type = 'tiptap-doc'
+                                order by updated_at desc
+                                limit 1
+                             ) pb on true
+                             where p.user_id = $1 and (p.title ilike $2 or pb.content::text ilike $2)
+                             order by p.updated_at desc
+                             limit 3`,
+                            [userId, `%${query}%`]
+                        )
+                        pages.forEach(p => results.push({ id: p.id, type: 'page', title: p.title, snippet: p.content_text.substring(0, 120) }))
 
                         // Search Learning
-                        const { data: learning } = await supabase
-                            .from('learning_titles')
-                            .select('id, title')
-                            .eq('user_id', user.id)
-                            .ilike('title', `% ${query}% `)
-                            .limit(3)
-                        learning?.forEach(l => results.push({ id: l.id, type: 'learning', title: l.title, snippet: '' }))
+                        const learning = await dbQuery<{ id: string; title: string }>(
+                            'select id, title from learning_titles where user_id = $1 and title ilike $2 order by updated_at desc limit 3',
+                            [userId, `%${query}%`]
+                        )
+                        learning.forEach(l => results.push({ id: l.id, type: 'learning', title: l.title, snippet: '' }))
 
                         // Search Reminders
-                        const { data: reminders } = await supabase
-                            .from('reminders')
-                            .select('id, title')
-                            .eq('user_id', user.id)
-                            .ilike('title', `% ${query}% `)
-                            .limit(3)
-                        reminders?.forEach(r => results.push({ id: r.id, type: 'reminder', title: r.title, snippet: '' }))
+                        const reminders = await dbQuery<{ id: string; title: string }>(
+                            'select id, title from reminders where user_id = $1 and title ilike $2 order by updated_at desc limit 3',
+                            [userId, `%${query}%`]
+                        )
+                        reminders.forEach(r => results.push({ id: r.id, type: 'reminder', title: r.title, snippet: '' }))
 
                         // Search Web URLs
-                        const { data: webUrls } = await supabase
-                            .from('web_urls')
-                            .select('id, name, url, remarks')
-                            .eq('user_id', user.id)
-                            .or(`name.ilike.% ${query}%, remarks.ilike.% ${query}% `)
-                            .limit(3)
-                        webUrls?.forEach(w => results.push({ id: w.id, type: 'web_url', title: w.name, snippet: w.url }))
+                        const webUrls = await dbQuery<{ id: string; name: string; url: string; remarks: string | null }>(
+                            `select id, name, url, remarks
+                             from web_urls
+                             where user_id = $1 and (name ilike $2 or remarks ilike $2)
+                             order by created_at desc
+                             limit 3`,
+                            [userId, `%${query}%`]
+                        )
+                        webUrls.forEach(w => results.push({ id: w.id, type: 'web_url', title: w.name, snippet: w.url }))
 
                         // Search YouTube
-                        const { data: youtube } = await supabase
-                            .from('youtube_items')
-                            .select('id, name, url, note')
-                            .eq('user_id', user.id)
-                            .or(`name.ilike.% ${query}%, note.ilike.% ${query}% `)
-                            .limit(3)
-                        youtube?.forEach(y => results.push({ id: y.id, type: 'youtube_video', title: y.name, snippet: y.url }))
+                        const youtube = await dbQuery<{ id: string; name: string; url: string; note: string | null }>(
+                            `select id, name, url, note
+                             from youtube_items
+                             where user_id = $1 and (name ilike $2 or note ilike $2)
+                             order by created_at desc
+                             limit 3`,
+                            [userId, `%${query}%`]
+                        )
+                        youtube.forEach(y => results.push({ id: y.id, type: 'youtube_video', title: y.name, snippet: y.url }))
 
                         if (results.length === 0) return "No results found."
                         return JSON.stringify(results)
@@ -326,7 +279,7 @@ export async function POST(req: Request) {
                     execute: async (args: any) => {
                         const { id, type } = args
                         console.log(`Executing deleteResource tool: ${type} ${id} `)
-                        if (!user) return 'Error: You must be logged in to delete resources.'
+                        if (!userId) return 'Error: You must be logged in to delete resources.'
 
                         let table = ''
                         switch (type) {
@@ -337,16 +290,7 @@ export async function POST(req: Request) {
                             case 'youtube_video': table = 'youtube_items'; break;
                         }
 
-                        const { error } = await supabase
-                            .from(table)
-                            .delete()
-                            .eq('id', id)
-                            .eq('user_id', user.id)
-
-                        if (error) {
-                            console.error(`Error deleting ${type}: `, error)
-                            return `Failed to delete ${type}: ${error.message} `
-                        }
+                        await dbQuery(`delete from ${table} where id = $1 and user_id = $2`, [id, userId])
                         return `${type} with ID ${id} deleted successfully.`
                     },
                 } as any),
@@ -360,19 +304,37 @@ export async function POST(req: Request) {
                     execute: async (args: any) => {
                         const { id, title, content } = args
                         console.log("Executing updatePage tool:", id)
-                        if (!user) return 'Error: You must be logged in to update pages.'
+                        if (!userId) return 'Error: You must be logged in to update pages.'
 
-                        const updates: any = { updated_at: new Date().toISOString() }
-                        if (title) updates.title = title
-                        if (content) updates.content = content
+                        if (title) {
+                            await dbQuery('update pages set title = $1, updated_at = now() where id = $2 and user_id = $3', [
+                                title,
+                                id,
+                                userId,
+                            ])
+                        } else {
+                            await dbQuery('update pages set updated_at = now() where id = $1 and user_id = $2', [id, userId])
+                        }
 
-                        const { error } = await supabase
-                            .from('pages')
-                            .update(updates)
-                            .eq('id', id)
-                            .eq('user_id', user.id)
-
-                        if (error) return `Failed to update page: ${error.message} `
+                        if (typeof content === 'string') {
+                            const existing = await dbQuery<{ id: string }>(
+                                "select id from page_blocks where page_id = $1 and user_id = $2 and type = 'tiptap-doc' limit 1",
+                                [id, userId]
+                            )
+                            const doc = markdownToTiptapDoc(content)
+                            if (existing[0]) {
+                                await dbQuery('update page_blocks set content = $1::jsonb, updated_at = now() where id = $2 and user_id = $3', [
+                                    JSON.stringify(doc),
+                                    existing[0].id,
+                                    userId,
+                                ])
+                            } else {
+                                await dbQuery(
+                                    "insert into page_blocks (page_id, user_id, type, content, updated_at) values ($1, $2, 'tiptap-doc', $3::jsonb, now())",
+                                    [id, userId, JSON.stringify(doc)]
+                                )
+                            }
+                        }
                         return `Page updated successfully.`
                     },
                 } as any),
@@ -387,20 +349,18 @@ export async function POST(req: Request) {
                     execute: async (args: any) => {
                         const { id, title, priority, status } = args
                         console.log("Executing updateLearning tool:", id)
-                        if (!user) return 'Error: You must be logged in.'
+                        if (!userId) return 'Error: You must be logged in.'
 
                         const updates: any = {}
                         if (title) updates.title = title
                         if (priority) updates.priority = priority
                         if (status) updates.status = status
 
-                        const { error } = await supabase
-                            .from('learning_titles')
-                            .update(updates)
-                            .eq('id', id)
-                            .eq('user_id', user.id)
-
-                        if (error) return `Failed to update learning goal: ${error.message} `
+                        const fields = Object.keys(updates)
+                        if (!fields.length) return 'No updates provided.'
+                        const sets = fields.map((k, i) => `${k} = $${i + 1}`).join(', ')
+                        const params = [...fields.map(k => updates[k]), id, userId]
+                        await dbQuery(`update learning_titles set ${sets}, updated_at = now() where id = $${fields.length + 1} and user_id = $${fields.length + 2}`, params)
                         return `Learning goal updated successfully.`
                     },
                 } as any),
@@ -416,7 +376,7 @@ export async function POST(req: Request) {
                     execute: async (args: any) => {
                         const { id, name, url, category, remarks } = args
                         console.log("Executing updateWebUrl tool:", id)
-                        if (!user) return 'Error: You must be logged in.'
+                        if (!userId) return 'Error: You must be logged in.'
 
                         const updates: any = {}
                         if (name) updates.name = name
@@ -424,13 +384,11 @@ export async function POST(req: Request) {
                         if (category) updates.category = category
                         if (remarks) updates.remarks = remarks
 
-                        const { error } = await supabase
-                            .from('web_urls')
-                            .update(updates)
-                            .eq('id', id)
-                            .eq('user_id', user.id)
-
-                        if (error) return `Failed to update Web URL: ${error.message} `
+                        const fields = Object.keys(updates)
+                        if (!fields.length) return 'No updates provided.'
+                        const sets = fields.map((k, i) => `${k} = $${i + 1}`).join(', ')
+                        const params = [...fields.map(k => updates[k]), id, userId]
+                        await dbQuery(`update web_urls set ${sets} where id = $${fields.length + 1} and user_id = $${fields.length + 2}`, params)
                         return `Web URL updated successfully.`
                     },
                 } as any),
@@ -445,20 +403,18 @@ export async function POST(req: Request) {
                     execute: async (args: any) => {
                         const { id, name, url, note } = args
                         console.log("Executing updateYoutubeVideo tool:", id)
-                        if (!user) return 'Error: You must be logged in.'
+                        if (!userId) return 'Error: You must be logged in.'
 
                         const updates: any = {}
                         if (name) updates.name = name
                         if (url) updates.url = url
                         if (note) updates.note = note
 
-                        const { error } = await supabase
-                            .from('youtube_items')
-                            .update(updates)
-                            .eq('id', id)
-                            .eq('user_id', user.id)
-
-                        if (error) return `Failed to update YouTube video: ${error.message} `
+                        const fields = Object.keys(updates)
+                        if (!fields.length) return 'No updates provided.'
+                        const sets = fields.map((k, i) => `${k} = $${i + 1}`).join(', ')
+                        const params = [...fields.map(k => updates[k]), id, userId]
+                        await dbQuery(`update youtube_items set ${sets}, updated_at = now() where id = $${fields.length + 1} and user_id = $${fields.length + 2}`, params)
                         return `YouTube video updated successfully.`
                     },
                 } as any),
