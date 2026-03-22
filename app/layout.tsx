@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   description: "Personal workspace for notes, learning, and tools",
 };
 
+export const dynamic = "force-dynamic";
+
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 
