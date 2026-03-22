@@ -56,11 +56,6 @@ export function Sidebar({ className }: SidebarProps) {
     }, [])
 
     const handleCreatePage = async () => {
-        if (!user) {
-            router.push('/login')
-            return
-        }
-
         const res = await fetch('/api/pages', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
@@ -75,10 +70,6 @@ export function Sidebar({ className }: SidebarProps) {
     }
 
     const handleCreateLearning = async () => {
-        if (!user) {
-            router.push('/login')
-            return
-        }
         const res = await fetch('/api/learning', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
@@ -92,10 +83,6 @@ export function Sidebar({ className }: SidebarProps) {
     }
 
     const handleCreateReminder = async () => {
-        if (!user) {
-            router.push('/login')
-            return
-        }
         const res = await fetch('/api/reminders', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
@@ -242,22 +229,11 @@ export function Sidebar({ className }: SidebarProps) {
 
             </div>
             <div className="p-4 border-t mt-auto">
-                {!user ? (
-                    <Button className="w-full" asChild>
-                        <Link href="/login">Log In</Link>
-                    </Button>
-                ) : (
+                {user && (
                     <div className="flex flex-col gap-2 w-full">
                         <div className="px-2 py-1.5 text-sm font-medium truncate text-muted-foreground bg-muted/50 rounded-md">
                             {user.email}
                         </div>
-                        <Button variant="outline" className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50" onClick={async () => {
-                            await fetch('/api/auth/logout', { method: 'POST' })
-                            router.push('/login')
-                        }}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-4 w-4"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>
-                            Log out
-                        </Button>
                     </div>
                 )}
             </div>
