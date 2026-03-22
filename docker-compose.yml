@@ -1,8 +1,9 @@
 version: '3.8'
 
 services:
-  webnote:
-    container_name: webnote_app
+  webnote_service:
+    image: webnote_local_build:v1
+    container_name: webnote_app_v1
     build: .
     ports:
       - "3000:3000"
