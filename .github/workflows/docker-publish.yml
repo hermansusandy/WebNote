@@ -26,7 +26,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.actor }}/webnote
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -34,5 +34,5 @@ jobs:
           context: .
           push: true
           # Make the package public so NAS can pull it without logging in
-          tags: ghcr.io/${{ github.repository }}:main
+          tags: ghcr.io/${{ github.actor }}/webnote:main
           labels: ${{ steps.meta.outputs.labels }}
