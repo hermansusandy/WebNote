@@ -1,10 +1,14 @@
 FROM node:20-alpine AS builder
+# Add libc6-compat for lightningcss/native modules compatibility on Alpine
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY . .
 RUN npm ci --legacy-peer-deps
 RUN npm run build
 
 FROM node:20-alpine AS runner
+# Add libc6-compat for lightningcss/native modules compatibility on Alpine
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
