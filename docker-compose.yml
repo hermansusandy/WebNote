@@ -3,7 +3,7 @@ version: '3.8'
 services:
   webnote_service:
     container_name: webnote_app_v4
-    build: https://github.com/hermansusandy/WebNote/archive/refs/heads/main.tar.gz
+    build: .
     ports:
       - "3000:3000"
     environment:
