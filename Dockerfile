@@ -5,6 +5,8 @@ WORKDIR /app
 COPY . .
 # Use npm install instead of npm ci so that Linux-specific optional dependencies (like lightningcss bindings) are downloaded
 RUN npm install --legacy-peer-deps
+# Explicitly install the missing native modules for Alpine Linux (musl)
+RUN npm install --no-save lightningcss-linux-x64-musl@1.32.0 lightningcss-linux-arm64-musl@1.32.0
 RUN npm run build
 
 FROM node:20-alpine AS runner
