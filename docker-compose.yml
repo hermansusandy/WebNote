@@ -2,9 +2,9 @@ version: '3.8'
 
 services:
   webnote_service:
-    image: webnote_local_build:v1
-    container_name: webnote_app_v1
-    build: .
+    image: webnote_github_build:v2
+    container_name: webnote_app_v2
+    build: https://github.com/hermansusandy/WebNote.git#main
     ports:
       - "3000:3000"
     environment:
