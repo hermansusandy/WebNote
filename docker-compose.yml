@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   webnote:
     container_name: webnote_app
@@ -14,6 +16,8 @@ services:
       GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
       GOOGLE_VERTEX_PROJECT: ${GOOGLE_VERTEX_PROJECT:-}
       GOOGLE_VERTEX_LOCATION: ${GOOGLE_VERTEX_LOCATION:-}
+    networks:
+      - webnote_network
     restart: unless-stopped
 
   postgres:
@@ -26,6 +30,16 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
     volumes:
-      - ${WEBNOTE_POSTGRES_DATA_DIR:-./.data/postgres}:/var/lib/postgresql/data
+      - webnote_postgres_data:/var/lib/postgresql/data
       - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - webnote_network
     restart: unless-stopped
+
+volumes:
+  webnote_postgres_data:
+
+networks:
+  webnote_network:
+    name: webnote_network
+    driver: bridge
