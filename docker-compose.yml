@@ -1,5 +1,6 @@
 services:
   webnote:
+    container_name: webnote_app
     build:
       context: .
       dockerfile: Dockerfile
@@ -16,6 +17,7 @@ services:
     restart: unless-stopped
 
   postgres:
+    container_name: webnote_postgres
     image: postgres:16-alpine
     ports:
       - "5432:5432"
