@@ -3,7 +3,8 @@ FROM node:20-alpine AS builder
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY . .
-RUN npm ci --legacy-peer-deps
+# Use npm install instead of npm ci so that Linux-specific optional dependencies (like lightningcss bindings) are downloaded
+RUN npm install --legacy-peer-deps
 RUN npm run build
 
 FROM node:20-alpine AS runner
