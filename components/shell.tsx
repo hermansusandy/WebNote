@@ -21,9 +21,10 @@ export function Shell({ children }: ShellProps) {
         setMounted(true)
     }, [])
 
-    if (!mounted) {
-        return null
-    }
+    // Removed mounted check to reveal potential hydration errors or fix mounting issues
+    // if (!mounted) {
+    //     return null
+    // }
 
     if (isMobile) {
         return (
