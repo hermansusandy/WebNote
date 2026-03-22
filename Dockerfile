@@ -1,18 +1,12 @@
-FROM node:20-alpine AS builder
-# Add libc6-compat for lightningcss/native modules compatibility on Alpine
-RUN apk add --no-cache libc6-compat
+# Force Alpine to use glibc instead of musl so lightningcss runs perfectly
+FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 COPY package*.json ./
-# Use npm install instead of npm ci so that Linux-specific optional dependencies (like lightningcss bindings) are downloaded
 RUN npm install --legacy-peer-deps
-# Explicitly install ONLY the x64 native module for Alpine Linux (musl)
-RUN npm install --no-save lightningcss-linux-x64-musl@1.32.0
 COPY . .
 RUN npm run build
 
-FROM node:20-alpine AS runner
-# Add libc6-compat for lightningcss/native modules compatibility on Alpine
-RUN apk add --no-cache libc6-compat
+FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
